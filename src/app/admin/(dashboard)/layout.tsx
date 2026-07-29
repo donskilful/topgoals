@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isStaffRole } from "@/lib/constants";
+import { dbConnect } from "@/lib/db";
+import { Message } from "@/lib/models/message";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUserMenu } from "@/components/admin/admin-user-menu";
 
@@ -24,9 +26,12 @@ export default async function AdminDashboardLayout({
     redirect("/admin/login");
   }
 
+  await dbConnect();
+  const unreadMessages = await Message.countDocuments({ handled: false });
+
   return (
     <div className="min-h-screen md:flex">
-      <AdminNav role={user.role} />
+      <AdminNav role={user.role} unreadMessages={unreadMessages} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-ink/90 px-5 backdrop-blur-md">

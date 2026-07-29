@@ -21,6 +21,7 @@ import { Tip } from "../src/lib/models/tip";
 import { Highlight } from "../src/lib/models/highlight";
 import { Match } from "../src/lib/models/match";
 import { StandingRow } from "../src/lib/models/standing-row";
+import { Message } from "../src/lib/models/message";
 import { DEFAULT_COMPETITION } from "../src/lib/constants";
 import { slugify } from "../src/lib/slug";
 
@@ -368,6 +369,7 @@ async function main() {
     Match.syncIndexes(),
     StandingRow.syncIndexes(),
     User.syncIndexes(),
+    Message.syncIndexes(),
   ]);
 
   const adminId = await seedAdmin();

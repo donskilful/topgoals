@@ -21,6 +21,7 @@ const FOOTER_SECTIONS = [
     heading: "TopGoals",
     links: [
       { label: "About Us", href: "/about" },
+      { label: "Contact Us", href: "/contact" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Responsible Gambling", href: "/privacy#responsible-gambling" },
     ],

@@ -21,6 +21,7 @@ const CONTENT_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
+  { label: "Messages", href: "/admin/messages" },
   { label: "Staff", href: "/admin/users", adminOnly: true },
   { label: "Activity Log", href: "/admin/activity-log" },
 ];
@@ -31,25 +32,38 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavLink({
+  item,
+  pathname,
+  badge,
+}: {
+  item: NavItem;
+  pathname: string;
+  badge?: number;
+}) {
   const active = isActive(pathname, item.href);
 
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      className={`rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
+      className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
         active
           ? "bg-charcoal-3 text-floodlight"
           : "text-floodlight-dim hover:bg-charcoal-2 hover:text-floodlight"
       }`}
     >
       {item.label}
+      {badge ? (
+        <span className="rounded-full bg-torch px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
 
-export function AdminNav({ role }: { role: UserRole }) {
+export function AdminNav({ role, unreadMessages = 0 }: { role: UserRole; unreadMessages?: number }) {
   const pathname = usePathname();
   const adminItems = ADMIN_ITEMS.filter((item) => !item.adminOnly || role === "admin");
 
@@ -74,7 +88,12 @@ export function AdminNav({ role }: { role: UserRole }) {
           Manage
         </p>
         {adminItems.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} />
+          <NavLink
+            key={item.href}
+            item={item}
+            pathname={pathname}
+            badge={item.href === "/admin/messages" ? unreadMessages : undefined}
+          />
         ))}
       </div>
     </nav>

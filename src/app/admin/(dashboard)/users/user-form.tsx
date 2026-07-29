@@ -10,7 +10,7 @@ import {
   SelectField,
   SubmitButton,
   TextField,
-} from "@/components/admin/form-fields";
+} from "@/components/form-fields";
 
 const ROLE_OPTIONS = [
   { value: "moderator", label: "Moderator — can manage content" },

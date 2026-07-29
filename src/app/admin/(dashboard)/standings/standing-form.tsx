@@ -10,7 +10,7 @@ import {
   FormAlert,
   SubmitButton,
   TextField,
-} from "@/components/admin/form-fields";
+} from "@/components/form-fields";
 
 export type StandingFormValues = {
   id: string;

@@ -12,7 +12,7 @@ import {
   SubmitButton,
   TextAreaField,
   TextField,
-} from "@/components/admin/form-fields";
+} from "@/components/form-fields";
 import { MediaUpload } from "@/components/admin/media-upload";
 
 const CATEGORY_OPTIONS = [

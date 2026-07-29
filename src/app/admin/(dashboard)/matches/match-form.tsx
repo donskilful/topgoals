@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createMatch, updateMatch } from "@/lib/actions/matches";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { NO_SCORE } from "@/lib/constants";
-import { FormAlert, SelectField, SubmitButton, TextField } from "@/components/admin/form-fields";
+import { FormAlert, SelectField, SubmitButton, TextField } from "@/components/form-fields";
 
 const STATUS_OPTIONS = [
   { value: "upcoming", label: "Upcoming — not started" },

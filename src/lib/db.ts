@@ -36,10 +36,7 @@ export async function dbConnect(): Promise<typeof mongoose> {
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      // Fail fast with a clear error instead of hanging when Atlas is unreachable.
-      serverSelectionTimeoutMS: 10_000,
-    });
+    cached.promise = connectWithRetry(MONGODB_URI);
   }
 
   try {
@@ -51,4 +48,53 @@ export async function dbConnect(): Promise<typeof mongoose> {
   }
 
   return cached.conn;
+}
+
+const MAX_ATTEMPTS = 3;
+
+/**
+ * Connects, retrying briefly on transient network failures.
+ *
+ * A build prerenders many pages at once and a single dropped handshake
+ * (ECONNRESET, a momentary Atlas blip) would otherwise fail the whole deploy.
+ * Genuine problems — bad credentials, wrong host — fail on the first attempt
+ * rather than being retried pointlessly.
+ */
+async function connectWithRetry(uri: string): Promise<typeof mongoose> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await mongoose.connect(uri, {
+        // Fail fast with a clear error instead of hanging when Atlas is unreachable.
+        serverSelectionTimeoutMS: 10_000,
+      });
+    } catch (error) {
+      lastError = error;
+
+      if (!isTransient(error) || attempt === MAX_ATTEMPTS) break;
+
+      const backoffMs = 500 * 2 ** (attempt - 1);
+      console.warn(
+        `MongoDB connection attempt ${attempt} failed (${describe(error)}); retrying in ${backoffMs}ms.`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+
+  throw lastError;
+}
+
+/** Network-level hiccups worth retrying, as opposed to auth or config errors. */
+function isTransient(error: unknown): boolean {
+  const message = describe(error);
+  return (
+    /ECONNRESET|ETIMEDOUT|EPIPE|ENOTFOUND|ECONNREFUSED|EAI_AGAIN/.test(message) ||
+    /SystemOverloaded|RetryableError|HandshakeError|connection .* closed/i.test(message)
+  );
+}
+
+function describe(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return String(error);
 }

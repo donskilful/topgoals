@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
-import { DeleteButton } from "@/components/admin/form-fields";
+import { DeleteButton } from "@/components/form-fields";
 
 type DeleteAction = (prevState: FormState, formData: FormData) => Promise<FormState>;
 

@@ -9,7 +9,7 @@ import {
   SelectField,
   SubmitButton,
   TextField,
-} from "@/components/admin/form-fields";
+} from "@/components/form-fields";
 
 const CONFIDENCE_OPTIONS = [
   { value: "1", label: "1 — Speculative" },

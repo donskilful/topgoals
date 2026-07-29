@@ -41,6 +41,15 @@ export type MatchStatus = (typeof MATCH_STATUSES)[number];
 /** En dash — shown in place of a score before kickoff. */
 export const NO_SCORE = "–";
 
+export const MESSAGE_TOPICS = [
+  "Correction",
+  "General enquiry",
+  "Feedback",
+  "Advertising",
+  "Press",
+] as const;
+export type MessageTopic = (typeof MESSAGE_TOPICS)[number];
+
 export const AUDIT_ACTIONS = ["create", "update", "delete"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -51,6 +60,7 @@ export const AUDIT_ENTITY_TYPES = [
   "Match",
   "StandingRow",
   "User",
+  "Message",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 /** Update when the policy text materially changes. */
-const LAST_UPDATED = "29 July 2026";
+const LAST_UPDATED = "30 July 2026";
 
 function Section({
   title,
@@ -61,6 +61,11 @@ export default function PrivacyPage() {
             is all we need in order to send you tips.
           </p>
           <p>
+            <strong className="text-floodlight">If you use the contact form:</strong> we store the
+            name, email address and message you send, so we can read it and reply. Nothing else is
+            attached to it, and the email is never added to a mailing list.
+          </p>
+          <p>
             <strong className="text-floodlight">If you&apos;re a member of staff:</strong> our CMS
             stores your name, email, a securely hashed password, and a log of the content
             changes you make. Passwords are hashed with bcrypt and cannot be read by us or
@@ -95,9 +100,10 @@ export default function PrivacyPage() {
         <Section title="How long we keep it">
           <p>
             Subscription details are kept until you unsubscribe, after which they are deleted.
-            Staff accounts are kept while the person has access. Entries in the content audit
-            log are kept indefinitely, because the point of that record is to show who changed
-            what.
+            Contact form messages are kept while we deal with them and deleted once they&apos;re no
+            longer needed — ask us and we&apos;ll delete yours sooner. Staff accounts are kept
+            while the person has access. Entries in the content audit log are kept indefinitely,
+            because the point of that record is to show who changed what.
           </p>
         </Section>
 
@@ -190,11 +196,11 @@ export default function PrivacyPage() {
 
         <Section title="Contact">
           <p>
-            For anything relating to your data or this policy, get in touch via our{" "}
-            <Link href="/about#contact" className="text-pitch-bright hover:underline">
-              contact details
-            </Link>
-            .
+            For anything relating to your data or this policy, use our{" "}
+            <Link href="/contact" className="text-pitch-bright hover:underline">
+              contact form
+            </Link>{" "}
+            and choose &ldquo;General enquiry&rdquo;.
           </p>
         </Section>
       </div>

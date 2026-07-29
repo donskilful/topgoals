@@ -12,10 +12,24 @@ import { Tag } from "@/components/tag";
 
 export const revalidate = 60;
 
-/** Prerender the articles that exist at build time; new ones render on first request. */
+/**
+ * Prerender the articles that exist at build time; new ones render on first request.
+ *
+ * A database blip must not fail the whole deploy, so a failure here degrades to
+ * prerendering nothing — every article then renders on first request and is cached
+ * from that point, which is a slower first hit rather than a broken build.
+ */
 export async function generateStaticParams() {
-  const slugs = await getAllArticleSlugs();
-  return slugs.map((slug) => ({ slug }));
+  try {
+    const slugs = await getAllArticleSlugs();
+    return slugs.map((slug) => ({ slug }));
+  } catch (error) {
+    console.warn(
+      "Could not load article slugs for prerendering; they will be generated on demand.",
+      error,
+    );
+    return [];
+  }
 }
 
 export async function generateMetadata({

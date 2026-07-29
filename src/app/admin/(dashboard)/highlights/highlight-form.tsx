@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createHighlight, updateHighlight } from "@/lib/actions/highlights";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import type { Media } from "@/lib/schemas/shared";
-import { FormAlert, SubmitButton, TextField } from "@/components/admin/form-fields";
+import { FormAlert, SubmitButton, TextField } from "@/components/form-fields";
 import { MediaUpload } from "@/components/admin/media-upload";
 
 export type HighlightFormValues = {

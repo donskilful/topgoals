@@ -96,6 +96,12 @@ export default function AboutPage() {
             Live scores are currently updated by our team rather than an automated feed, so
             there can be a short delay during busy periods. We&apos;re working on that.
           </p>
+          <p>
+            <Link href="/contact" className="text-pitch-bright hover:underline">
+              Send us a message
+            </Link>{" "}
+            — corrections are usually handled the same day.
+          </p>
         </Section>
 
         <div className="rounded-xl border border-line bg-charcoal p-5 text-[13px] leading-relaxed text-floodlight-dim">

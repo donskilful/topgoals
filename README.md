@@ -112,10 +112,12 @@ src/
       (dashboard)/           # role-gated CMS shell
         page.tsx               # overview + recent activity
         articles/ tips/ highlights/ matches/ standings/
+        messages/              # contact form inbox
         users/                 # staff accounts (admin only)
         activity-log/          # audit trail
     scores/ tips/ news/ transfers/ highlights/
     articles/[slug]/         # article detail (SSG)
+    contact/                 # public contact form
     about/ privacy/          # static, not CMS-managed
     api/auth/[...nextauth]/  # Auth.js route handler
     api/cloudinary/sign/     # issues signed upload signatures
@@ -178,11 +180,41 @@ design/
 - **Live scores are manual.** There is no score feed yet, so the ticker's status line
   (`76'`, `FT`, `Today 20:00`) is typed by hand in the CMS. Phase 4 automates this.
 - **No email.** Account creation hands over a temporary password out of band; there is
-  no invite email or password-reset flow.
+  no invite email or password-reset flow. Contact form messages land in the CMS inbox
+  rather than an email inbox, so someone needs to check `/admin/messages`.
+- **The contact form isn't rate-limited.** It's validated and honeypotted, but proper
+  rate limiting needs shared state (Redis) that isn't in the stack yet. Submissions only
+  ever appear in the private CMS, never on a public page.
 
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-30 — Contact page with a CMS inbox
+
+- **`/contact`** with a working form: name, email, a topic (correction, general
+  enquiry, feedback, advertising, press) and the message. Corrections are called out
+  as the priority route, since a reader spotting a wrong score is the fastest way for
+  us to find out.
+- **Messages land in the CMS**, not an email inbox — there's no email service in the
+  stack, and a form that silently goes nowhere is worse than no form. `/admin/messages`
+  shows unhandled items first, with a mark-handled toggle (recording who did it), a
+  reply-by-email link, and an unread badge on the admin nav so it can't be forgotten.
+- **This is the only Server Action on the site with no role check**, by design, so it
+  carries its own defences: tight length caps, a honeypot field that silently discards
+  bot submissions while returning a normal-looking success, and no reflection of stored
+  input onto any public page. Rate limiting still needs shared state and is noted as a
+  known limitation.
+- **The privacy policy was updated to match** — a new data-collection point means the
+  policy has to disclose it, so there's now a section on what the contact form stores
+  and how long it's kept. Contact links were added to the footer, About and Privacy.
+- **Two robustness fixes prompted by a real build failure.** A transient Atlas
+  `ECONNRESET` broke a production build mid-prerender, which would have meant a failed
+  deploy from a momentary network blip. Connections now retry with backoff on
+  network-level errors only (auth and config mistakes still fail fast), and article
+  prerendering degrades to on-demand rendering instead of failing the build.
+- Shared form primitives moved from `components/admin/` to `components/`, since a
+  public page now depends on them.
 
 ### 2026-07-30 — Public pages, working navigation, About & Privacy
 
