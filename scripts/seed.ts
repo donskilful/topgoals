@@ -1,6 +1,6 @@
 /**
- * Seeds the database with the content that previously lived in src/lib/mock-data.ts,
- * plus a bootstrap admin account so you can log into the CMS.
+ * Seeds the database with starter content plus a bootstrap admin account, so a
+ * fresh install has something to render and someone who can sign in.
  *
  *   npm run seed            # create the admin; seed content only if collections are empty
  *   npm run seed -- --reset # wipe and re-seed all content collections (never users)

@@ -1,10 +1,36 @@
 import Link from "next/link";
-import { heroStory, heroSideStories } from "@/lib/mock-data";
+import { getFeaturedArticle, getHeroSideStories } from "@/lib/data/articles";
 import { HeroGhost } from "./hero-ghost";
 import { HeroFigure } from "./hero-figure";
 import { Tag } from "./tag";
 
-export function Hero() {
+/**
+ * Splits the headline around the accent phrase so it can be highlighted in gold.
+ * The accent is validated on save to be a substring, but this stays tolerant in
+ * case the data was edited outside the CMS.
+ */
+function renderHeadline(headline: string, accent: string | null) {
+  if (!accent) return headline;
+
+  const index = headline.toLowerCase().indexOf(accent.toLowerCase());
+  if (index === -1) return headline;
+
+  return (
+    <>
+      {headline.slice(0, index)}
+      <span className="text-torch">{headline.slice(index, index + accent.length)}</span>
+      {headline.slice(index + accent.length)}
+    </>
+  );
+}
+
+export async function Hero() {
+  const [hero, sideStories] = await Promise.all([getFeaturedArticle(), getHeroSideStories()]);
+
+  // Nothing featured yet — the ticker below still leads the page, so skip the hero
+  // rather than rendering an empty band.
+  if (!hero) return null;
+
   return (
     <section className="relative overflow-hidden border-b border-line bg-[radial-gradient(1100px_520px_at_18%_-20%,rgba(245,185,66,0.10),transparent_55%),radial-gradient(900px_460px_at_100%_0%,rgba(22,163,94,0.14),transparent_55%),var(--ink)] py-10 md:py-14">
       <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-10 px-5 2xl:max-w-[1320px] lg:grid-cols-[1fr_300px] lg:items-center">
@@ -14,30 +40,26 @@ export function Hero() {
           <div className="relative z-10 max-w-[480px] max-[640px]:max-w-full">
             <div className="mb-4 flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[1.5px] text-whistle">
               <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-whistle" />
-              {heroStory.eyebrow}
+              {hero.eyebrow}
             </div>
             <h1 className="mb-[18px] font-display text-[clamp(2.3rem,5.6vw,4rem)] uppercase leading-[0.97] tracking-wide">
-              {heroStory.headlineLine1}
-              <br />
-              {heroStory.headlineLine2}
-              <br />
-              <span className="text-torch">{heroStory.headlineAccent}</span>
+              {renderHeadline(hero.headline, hero.headlineAccent)}
             </h1>
             <p className="mb-[26px] max-w-[420px] text-[15px] text-floodlight-dim max-[640px]:mx-auto">
-              {heroStory.description}
+              {hero.description}
             </p>
             <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
               <Link
-                href="#"
+                href={hero.primaryCta.href}
                 className="rounded-lg bg-torch px-[18px] py-2.5 text-[13px] font-extrabold text-ink shadow-[0_4px_14px_-4px_rgba(245,185,66,0.5)] transition-all hover:-translate-y-px hover:bg-[#ffc766]"
               >
-                {heroStory.primaryCta}
+                {hero.primaryCta.label}
               </Link>
               <Link
-                href="#"
+                href={hero.secondaryCta.href}
                 className="rounded-lg border border-line px-[18px] py-2.5 text-[13px] font-bold text-floodlight transition-colors hover:border-floodlight-faint hover:bg-charcoal-2"
               >
-                {heroStory.secondaryCta} →
+                {hero.secondaryCta.label} →
               </Link>
             </div>
           </div>
@@ -45,26 +67,38 @@ export function Hero() {
           <HeroFigure />
         </div>
 
-        <aside className="flex flex-col gap-3.5">
-          <div className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[1.5px] text-floodlight-faint">
-            <span className="h-1.5 w-1.5 rounded-full bg-pitch-bright" />
-            Right Now
-          </div>
-          {heroSideStories.map((story) => (
-            <Link
-              key={story.id}
-              href="#"
-              className="flex cursor-pointer gap-3 rounded-[10px] border border-line bg-charcoal p-2.5 transition-all hover:-translate-y-0.5 hover:border-[rgba(245,185,66,0.3)]"
-            >
-              <div className="h-16 w-16 flex-none rounded-lg border border-line bg-linear-to-br from-charcoal-3 to-charcoal-2" />
-              <div>
-                <Tag tag={story.tag} />
-                <h4 className="mb-1 mt-1 text-[13px] font-bold leading-tight">{story.title}</h4>
-                <span className="text-[11px] text-floodlight-faint">{story.time}</span>
-              </div>
-            </Link>
-          ))}
-        </aside>
+        {sideStories.length > 0 ? (
+          <aside className="flex flex-col gap-3.5">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[1.5px] text-floodlight-faint">
+              <span className="h-1.5 w-1.5 rounded-full bg-pitch-bright" />
+              Right Now
+            </div>
+            {sideStories.map((story) => (
+              <Link
+                key={story.id}
+                href={`/articles/${story.slug}`}
+                className="flex cursor-pointer gap-3 rounded-[10px] border border-line bg-charcoal p-2.5 transition-all hover:-translate-y-0.5 hover:border-[rgba(245,185,66,0.3)]"
+              >
+                <div className="h-16 w-16 flex-none overflow-hidden rounded-lg border border-line bg-linear-to-br from-charcoal-3 to-charcoal-2">
+                  {story.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={story.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+                <div>
+                  <Tag tag={story.tag} />
+                  <h4 className="mb-1 mt-1 text-[13px] font-bold leading-tight">{story.title}</h4>
+                  <span className="text-[11px] text-floodlight-faint">{story.time}</span>
+                </div>
+              </Link>
+            ))}
+          </aside>
+        ) : null}
       </div>
     </section>
   );

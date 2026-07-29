@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { trendingTips } from "@/lib/mock-data";
+import { getTrendingTips } from "@/lib/data/tips";
 
-export function TrendingTips() {
+export async function TrendingTips() {
+  const tips = await getTrendingTips();
+
+  if (tips.length === 0) return null;
+
   return (
     <div className="rounded-xl border border-line bg-charcoal p-4">
-      <h4 className="mb-3 font-display text-[15px] font-normal uppercase tracking-wide">Trending Tips</h4>
-      {trendingTips.map((tip, i) => (
+      <h4 className="mb-3 font-display text-[15px] font-normal uppercase tracking-wide">
+        Trending Tips
+      </h4>
+      {tips.map((tip, i) => (
         <Link
           key={tip.id}
-          href="#"
+          href="/tips"
           className={`flex items-center justify-between gap-2.5 py-[9px] ${
-            i === trendingTips.length - 1 ? "" : "border-b border-line"
+            i === tips.length - 1 ? "" : "border-b border-line"
           }`}
         >
           <div>

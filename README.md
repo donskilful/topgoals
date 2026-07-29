@@ -4,7 +4,8 @@ A fast, mobile-first football (soccer) hub — live scores, daily betting tips w
 tracked results, transfer news, sports news, and goals & highlights, all built to
 feel instant even on a poor connection.
 
-> **Status:** Early build. Homepage UI is complete on mock data. No backend yet.
+> **Status:** In active development. The CMS is working and the homepage runs on
+> real data. Public sub-pages (`/scores`, `/tips`, `/news`, article detail) are next.
 
 ## Why this stack
 
@@ -16,7 +17,7 @@ audience on mobile, often on weak connections.
 
 | Concern                            | Why it's handled here                                                    |
 | ----------------------------------- | --------------------------------------------------------------------------- |
-| Fast first paint on slow networks   | Server-rendered HTML; the homepage builds as fully static (SSG) content   |
+| Fast first paint on slow networks   | The homepage is prerendered static HTML, regenerated in the background   |
 | Mobile-first, native-app feel       | Fixed bottom tab bar on mobile, fully responsive down to 375px            |
 | No wasted bytes                     | Hero illustration is pure CSS/SVG — zero image assets to download         |
 | Fonts                               | Self-hosted via `next/font` (Anton, Inter, JetBrains Mono) — no external font requests |
@@ -26,8 +27,10 @@ audience on mobile, often on weak connections.
 - **Framework:** Next.js 16 (App Router), React 19, TypeScript
 - **Styling:** Tailwind CSS v4 (CSS-first `@theme` config, no `tailwind.config.js` needed)
 - **Fonts:** Anton (display), Inter (body), JetBrains Mono (scores/odds/data)
-- **Data (current):** typed mock data in `src/lib/mock-data.ts` — swappable for a real API/DB later
-- **Planned:** MongoDB + Mongoose, Redis caching, Socket.IO/SSE for live scores, PWA layer
+- **Database:** MongoDB Atlas + Mongoose
+- **Auth:** Auth.js v5 (credentials + JWT sessions)
+- **Media:** Cloudinary, signed uploads straight from the browser
+- **Planned:** Redis caching, Socket.IO/SSE for live scores, PWA layer
 
 ## Design system
 
@@ -62,8 +65,8 @@ Then fill in `.env.local`:
 2. **`AUTH_SECRET`** — generate one with `npx auth secret`.
 3. **`ADMIN_EMAIL` / `ADMIN_PASSWORD`** — the first admin account, created by the seed
    step below. Change the password after your first sign-in.
-4. **Cloudinary keys** — from your Cloudinary dashboard. Only needed once image and
-   video uploads are wired up.
+4. **Cloudinary keys** — from your Cloudinary dashboard (*Settings → API Keys*).
+   Needed for article images and highlight videos.
 
 Seed the database with starter content and your admin account, then start the app:
 
@@ -108,9 +111,11 @@ src/
       login/                 # sign-in page
       (dashboard)/           # role-gated CMS shell
         page.tsx               # overview + recent activity
+        articles/ tips/ highlights/ matches/ standings/
         users/                 # staff accounts (admin only)
         activity-log/          # audit trail
     api/auth/[...nextauth]/  # Auth.js route handler
+    api/cloudinary/sign/     # issues signed upload signatures
   components/
     site-header.tsx, hero.tsx, live-ticker.tsx, trust-strip.tsx,
     todays-picks.tsx, goals-highlights.tsx, latest-news.tsx,
@@ -128,9 +133,10 @@ src/
     models/                         # Mongoose schemas
     schemas/                         # Zod validation
     actions/                          # 'use server' mutations
-    mock-data.ts             # still powers the public homepage until Phase D
+    data/                    # read helpers for the public site (plain objects, no Mongoose docs)
+    format.ts                 # relative time, clip length, kick-off formatting
 scripts/
-  seed.ts                   # migrates mock data into MongoDB + bootstrap admin
+  seed.ts                   # starter content + bootstrap admin account
 design/
   homepage-mockup.html      # original static design reference
 ```
@@ -155,7 +161,7 @@ design/
 - [x] **2A** — MongoDB models, Auth.js with roles, seed script
 - [x] **2B** — Admin shell, staff accounts CRUD, audit trail
 - [x] **2C** — Content CRUD: articles, tips, highlights, scores, standings (+ Cloudinary uploads)
-- [ ] **2D** — Wire the public homepage to the database
+- [x] **2D** — Wire the public homepage to the database
 - [ ] **2E** — Public pages (`/scores`, `/tips`, `/news`, `/transfers`, `/highlights`, article detail), real navigation, About & Privacy
 
 **Later**
@@ -174,6 +180,36 @@ design/
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-29 — The public homepage now reads from the database
+
+Phase 2D. Anything published in the CMS appears on the live site. `mock-data.ts` is
+gone.
+
+- **A read layer** (`lib/data/*`) returns plain serialisable objects with string ids,
+  never Mongoose documents — hydrated docs and ObjectIds can't cross into a Client
+  Component, and keeping the mapping in one place stops database shape leaking into
+  UI props.
+- **Every homepage section is now a Server Component** reading from MongoDB: hero,
+  live ticker, results strip, today's picks, highlights, latest news, standings and
+  trending tips.
+- **Numbers are derived, not typed.** The 30-day win rate and profit are aggregated
+  from settled tips (a winner returns odds − 1, a loser costs 1), so the figure on the
+  page always matches the tips actually posted. Goal difference comes from the goals
+  columns. Relative timestamps are computed at render, so "2 hours ago" can't go
+  stale the way the old hardcoded strings did.
+- **The ticker orders by meaning**: live matches first, then upcoming, then finished.
+- **Empty states everywhere.** A fresh install with no content renders sensible
+  placeholders instead of empty boxes, and the results strip relabels itself to
+  "Recent Results" when nothing was settled yesterday rather than showing an empty row
+  under a "Yesterday" heading.
+- **The homepage stays static** — prerendered HTML is what keeps it quick on a weak
+  connection — with a one-minute regeneration window so live scores and timestamps
+  don't freeze at build time. CMS edits still push through immediately via
+  `revalidatePath`.
+- Verified against the real Atlas cluster: the page renders live data end to end, and
+  the win rate showed the true 80% / +1.7 units computed from the seeded tips rather
+  than the mock's invented figures.
 
 ### 2026-07-29 — Content CRUD for every section of the site
 
