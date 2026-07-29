@@ -1,12 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SearchIcon } from "./icons";
 
 const NAV_LINKS = [
-  { label: "Scores", href: "#", active: true },
-  { label: "Tips", href: "#" },
-  { label: "News", href: "#" },
-  { label: "Transfers", href: "#" },
-  { label: "Highlights", href: "#" },
+  { label: "Scores", href: "/scores" },
+  { label: "Tips", href: "/tips" },
+  { label: "News", href: "/news" },
+  { label: "Transfers", href: "/transfers" },
+  { label: "Highlights", href: "/highlights" },
 ];
 
 export function Logo({ className }: { className?: string }) {
@@ -23,30 +26,36 @@ export function Logo({ className }: { className?: string }) {
 }
 
 export function SiteHeader() {
+  const pathname = usePathname();
+
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-ink/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-5 2xl:max-w-[1320px]">
         <Logo />
 
         <nav className="hidden gap-7 md:flex">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className={`group relative py-1.5 text-sm font-semibold transition-colors ${
-                link.active ? "text-floodlight" : "text-floodlight-dim hover:text-floodlight"
-              }`}
-            >
-              {link.label}
-              <span
-                className={`absolute -bottom-[21px] left-0 right-0 h-0.5 origin-center transition-transform duration-200 ${
-                  link.active
-                    ? "scale-x-100 bg-pitch-bright"
-                    : "scale-x-0 bg-floodlight-dim group-hover:scale-x-100"
+          {NAV_LINKS.map((link) => {
+            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`group relative py-1.5 text-sm font-semibold transition-colors ${
+                  active ? "text-floodlight" : "text-floodlight-dim hover:text-floodlight"
                 }`}
-              />
-            </Link>
-          ))}
+              >
+                {link.label}
+                <span
+                  className={`absolute -bottom-[21px] left-0 right-0 h-0.5 origin-center transition-transform duration-200 ${
+                    active
+                      ? "scale-x-100 bg-pitch-bright"
+                      : "scale-x-0 bg-floodlight-dim group-hover:scale-x-100"
+                  }`}
+                />
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-3.5">
@@ -57,7 +66,7 @@ export function SiteHeader() {
             <SearchIcon className="text-floodlight" />
           </button>
           <Link
-            href="#"
+            href="/tips"
             className="hidden rounded-lg bg-torch px-[18px] py-2.5 text-[13px] font-extrabold text-ink shadow-[0_4px_14px_-4px_rgba(245,185,66,0.5)] transition-all hover:-translate-y-px hover:bg-[#ffc766] md:inline-block"
           >
             Today&apos;s Picks

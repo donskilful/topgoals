@@ -107,3 +107,71 @@ export async function getArticlesByCategory(
   const articles = await Article.find({ category }).sort({ publishedAt: -1 }).limit(limit).lean();
   return articles.map(toNewsCard);
 }
+
+export type ArticleDetail = {
+  id: string;
+  slug: string;
+  category: ArticleCategory;
+  title: string;
+  excerpt: string;
+  /** Split into paragraphs so the page doesn't need to parse markup. */
+  paragraphs: string[];
+  time: string;
+  publishedAt: string;
+  imageUrl: string | null;
+};
+
+export async function getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
+  await dbConnect();
+
+  const article = await Article.findOne({ slug }).lean();
+  if (!article) return null;
+
+  return {
+    id: String(article._id),
+    slug: article.slug,
+    category: article.category,
+    title: article.title,
+    excerpt: article.excerpt,
+    paragraphs: article.body
+      .split(/\n\s*\n/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean),
+    time: relativeTime(article.publishedAt),
+    publishedAt: article.publishedAt.toISOString(),
+    imageUrl: article.image?.secureUrl ?? null,
+  };
+}
+
+/** Other recent stories, for the "read next" block under an article. */
+export async function getRelatedArticles(
+  excludeSlug: string,
+  category: ArticleCategory,
+  limit = 3,
+): Promise<NewsCard[]> {
+  await dbConnect();
+
+  const sameCategory = await Article.find({ slug: { $ne: excludeSlug }, category })
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .lean();
+
+  if (sameCategory.length >= limit) return sameCategory.map(toNewsCard);
+
+  // Top up from any category so the block isn't half empty on a young site.
+  const excludeSlugs = [excludeSlug, ...sameCategory.map((a) => a.slug)];
+  const filler = await Article.find({ slug: { $nin: excludeSlugs } })
+    .sort({ publishedAt: -1 })
+    .limit(limit - sameCategory.length)
+    .lean();
+
+  return [...sameCategory, ...filler].map(toNewsCard);
+}
+
+/** All slugs, so the article routes can be prerendered at build time. */
+export async function getAllArticleSlugs(): Promise<string[]> {
+  await dbConnect();
+
+  const articles = await Article.find().select("slug").lean();
+  return articles.map((article) => article.slug);
+}

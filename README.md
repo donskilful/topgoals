@@ -4,8 +4,8 @@ A fast, mobile-first football (soccer) hub — live scores, daily betting tips w
 tracked results, transfer news, sports news, and goals & highlights, all built to
 feel instant even on a poor connection.
 
-> **Status:** In active development. The CMS is working and the homepage runs on
-> real data. Public sub-pages (`/scores`, `/tips`, `/news`, article detail) are next.
+> **Status:** The CMS is complete and the whole public site runs on real data.
+> Next up: automating live scores and news ingestion.
 
 ## Why this stack
 
@@ -114,6 +114,9 @@ src/
         articles/ tips/ highlights/ matches/ standings/
         users/                 # staff accounts (admin only)
         activity-log/          # audit trail
+    scores/ tips/ news/ transfers/ highlights/
+    articles/[slug]/         # article detail (SSG)
+    about/ privacy/          # static, not CMS-managed
     api/auth/[...nextauth]/  # Auth.js route handler
     api/cloudinary/sign/     # issues signed upload signatures
   components/
@@ -156,13 +159,13 @@ design/
 - [x] **Phase 0** — Brand & UI direction (dark stadium-under-lights identity)
 - [x] **Phase 1** — Next.js scaffold, homepage ported to real components on mock data
 
-**Phase 2 — CMS** (in progress)
+**Phase 2 — CMS** ✅ complete
 
 - [x] **2A** — MongoDB models, Auth.js with roles, seed script
 - [x] **2B** — Admin shell, staff accounts CRUD, audit trail
 - [x] **2C** — Content CRUD: articles, tips, highlights, scores, standings (+ Cloudinary uploads)
 - [x] **2D** — Wire the public homepage to the database
-- [ ] **2E** — Public pages (`/scores`, `/tips`, `/news`, `/transfers`, `/highlights`, article detail), real navigation, About & Privacy
+- [x] **2E** — Public pages (`/scores`, `/tips`, `/news`, `/transfers`, `/highlights`, article detail), real navigation, About & Privacy
 
 **Later**
 
@@ -180,6 +183,33 @@ design/
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-30 — Public pages, working navigation, About & Privacy
+
+Phase 2E, which completes the CMS phase. Every link in the site now goes somewhere.
+
+- **New pages:** `/scores` (full match list plus the league table), `/tips` (upcoming
+  picks and a permanent, public settled-results table), `/news`, `/transfers`,
+  `/highlights` with playable clips, and `/articles/[slug]` for article detail with a
+  "read next" block.
+- **Navigation actually works.** The header and mobile tab bar became Client
+  Components so they can highlight the current section via `usePathname`, and every
+  `href="#"` placeholder across the nav, ticker, tips, highlights and standings now
+  points at a real destination.
+- **A real footer**, grouped into Football / Reading / TopGoals, replacing the four
+  placeholder links.
+- **About Us** explains what the site covers, how tips are written, and why losing
+  tips stay published — including the point that the win rate is computed from the
+  database and so can't be quietly rounded up after a bad week.
+- **Privacy Policy** written to actually be read, covering what's collected, cookies
+  (one, for staff sign-in — which is why there's no consent banner), retention, and
+  your rights. It includes a substantial responsible-gambling section with real
+  helplines (BeGambleAware, GamCare, GAMSTOP), linked from the footer of every page.
+- **Everything stays static.** All the new pages are prerendered with a one-minute
+  refresh; article pages are pre-built per slug via `generateStaticParams`; About and
+  Privacy are fully static with no revalidation since they rarely change.
+- Verified every route in a production build: all pages return 200, an unknown article
+  slug 404s, and `/admin` redirects to sign-in.
 
 ### 2026-07-29 — The public homepage now reads from the database
 
