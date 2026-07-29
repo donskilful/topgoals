@@ -1,4 +1,15 @@
-import type { Model } from "mongoose";
+/**
+ * The narrowest shape uniqueSlug needs from a model.
+ *
+ * Declared structurally rather than as `Model<{ slug: string }>` because Mongoose's
+ * model generics are invariant — a concrete `Model<ArticleDoc>` isn't assignable to
+ * a model of a narrower document type.
+ */
+type SlugLookupModel = {
+  findOne(filter: Record<string, unknown>): {
+    select(projection: string): { lean(): Promise<unknown> };
+  };
+};
 
 /** Turns "Mbappé completes move to Real Madrid!" into "mbappe-completes-move-to-real-madrid". */
 export function slugify(input: string): string {
@@ -18,7 +29,7 @@ export function slugify(input: string): string {
  * `excludeId` lets an article keep its own slug when being edited.
  */
 export async function uniqueSlug(
-  model: Model<{ slug: string }>,
+  model: SlugLookupModel,
   title: string,
   excludeId?: string,
 ): Promise<string> {

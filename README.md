@@ -154,7 +154,7 @@ design/
 
 - [x] **2A** — MongoDB models, Auth.js with roles, seed script
 - [x] **2B** — Admin shell, staff accounts CRUD, audit trail
-- [ ] **2C** — Content CRUD: articles, tips, highlights, scores, standings (+ Cloudinary uploads)
+- [x] **2C** — Content CRUD: articles, tips, highlights, scores, standings (+ Cloudinary uploads)
 - [ ] **2D** — Wire the public homepage to the database
 - [ ] **2E** — Public pages (`/scores`, `/tips`, `/news`, `/transfers`, `/highlights`, article detail), real navigation, About & Privacy
 
@@ -174,6 +174,34 @@ design/
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-29 — Content CRUD for every section of the site
+
+Phase 2C. Everything on the homepage can now be created, edited and deleted from
+the CMS. The public pages still read the old mock data — Phase 2D swaps that over.
+
+- **Five content types**, each with a list view, create and edit forms, and delete:
+  articles (news + transfers), betting tips, goals & highlights, live scores, and the
+  league table.
+- **The homepage hero is a featured article**, not a separate thing to maintain.
+  Ticking "feature this on the homepage hero" reveals the hero-specific fields, and
+  saving automatically un-features whatever was there before — with the database
+  index as the backstop.
+- **Cloudinary uploads** for article images, highlight videos and thumbnails. Uploads
+  are signed server-side and go straight from the browser to Cloudinary, so files
+  never pass through our server and the upload endpoint can't be abused anonymously.
+  Replacing or deleting an asset deletes the old file too, so storage doesn't fill up
+  with orphans.
+- **Validation that reflects the domain**, not just "required": odds must be decimal
+  and above 1.01, clip length is entered as `mm:ss`, scores accept a number or blank
+  before kickoff, and a featured article must have the hero copy the homepage needs.
+  Highlighted hero words are checked to actually appear in the hero headline.
+- **Goal difference is derived** from the goals-for and goals-against columns rather
+  than stored, so the table can never contradict itself.
+- **Slugs survive edits.** Retitling an article regenerates its slug; editing anything
+  else keeps it, so existing links and shares don't break.
+- Every change is validated server-side, recorded in the audit trail with before and
+  after snapshots, and pushed live via `revalidatePath` without a redeploy.
 
 ### 2026-07-29 — CMS foundations: database, authentication, staff accounts, audit trail
 
