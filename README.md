@@ -51,59 +51,159 @@ open it directly in a browser to see the original design pass this build was por
 
 ```bash
 npm install
+cp .env.example .env.local
+```
+
+Then fill in `.env.local`:
+
+1. **`MONGODB_URI`** — create a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster,
+   then *Connect → Drivers* and copy the connection string. URL-encode any special
+   characters in the password, and add your IP under *Network Access*.
+2. **`AUTH_SECRET`** — generate one with `npx auth secret`.
+3. **`ADMIN_EMAIL` / `ADMIN_PASSWORD`** — the first admin account, created by the seed
+   step below. Change the password after your first sign-in.
+4. **Cloudinary keys** — from your Cloudinary dashboard. Only needed once image and
+   video uploads are wired up.
+
+Seed the database with starter content and your admin account, then start the app:
+
+```bash
+npm run seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) for the site, or
+[/admin/login](http://localhost:3000/admin/login) for the CMS.
 
 ```bash
-npm run build   # production build
-npm run lint    # ESLint
+npm run build            # production build
+npm run lint             # ESLint
+npm run seed             # create admin; seed content only if empty
+npm run seed -- --reset  # wipe and re-seed content (never touches accounts)
 ```
+
+## Roles
+
+| Role | Can do |
+| --- | --- |
+| **Administrator** | Everything — all content, staff accounts, and the full activity log |
+| **Moderator** | Create and edit content; sees only their own activity |
+| **User** | No CMS access. Scaffolded for future site accounts (favourites, notifications) — nothing uses it yet |
+
+There is no public sign-up and no email invite flow: an administrator creates each
+account with a temporary password and shares it directly.
 
 ## Project structure
 
 ```
 src/
+  auth.config.ts          # edge-safe Auth.js config (no DB/bcrypt) — imported by proxy.ts
+  auth.ts                  # full Auth.js config with the Credentials provider
+  proxy.ts                  # route protection for /admin (Next 16's middleware)
   app/
-    layout.tsx        # fonts, metadata, root layout
-    page.tsx           # homepage assembly
-    globals.css         # design tokens + Tailwind @theme
+    layout.tsx              # fonts, metadata, root layout
+    page.tsx                 # homepage assembly
+    globals.css               # design tokens + Tailwind @theme
+    admin/
+      login/                 # sign-in page
+      (dashboard)/           # role-gated CMS shell
+        page.tsx               # overview + recent activity
+        users/                 # staff accounts (admin only)
+        activity-log/          # audit trail
+    api/auth/[...nextauth]/  # Auth.js route handler
   components/
-    site-header.tsx
-    hero.tsx / hero-figure.tsx / hero-ghost.tsx
-    live-ticker.tsx
-    trust-strip.tsx
-    todays-picks.tsx
-    goals-highlights.tsx
-    latest-news.tsx
-    site-footer.tsx
-    mobile-tabbar.tsx
-    sidebar/
-      standings-widget.tsx
-      trending-tips.tsx
-      newsletter-card.tsx
+    site-header.tsx, hero.tsx, live-ticker.tsx, trust-strip.tsx,
+    todays-picks.tsx, goals-highlights.tsx, latest-news.tsx,
+    site-footer.tsx, mobile-tabbar.tsx, sidebar/*
+    admin/                   # CMS nav, shared form fields, page chrome
   lib/
-    mock-data.ts        # all homepage content — swap for real data source here
+    constants.ts            # shared enums — NO server imports (safe for client + edge)
+    errors.ts                # shared error types
+    db.ts                     # cached Mongoose connection
+    auth-helpers.ts            # requireRole / requireAdmin
+    audit.ts                    # logAudit() — writes the who/what/when trail
+    form-state.ts                # shared Server Action result shape
+    cloudinary.ts                 # server-only Cloudinary client
+    slug.ts                        # slug generation + uniqueness
+    models/                         # Mongoose schemas
+    schemas/                         # Zod validation
+    actions/                          # 'use server' mutations
+    mock-data.ts             # still powers the public homepage until Phase D
+scripts/
+  seed.ts                   # migrates mock data into MongoDB + bootstrap admin
 design/
-  homepage-mockup.html   # original static design reference
+  homepage-mockup.html      # original static design reference
 ```
+
+### Two rules worth knowing before adding code
+
+1. **`lib/constants.ts` must never import Mongoose.** Client Components, Zod schemas
+   and the edge proxy all import from it. Put shared enums there, not in a model file
+   — importing a model from client code drags the whole ODM into the browser bundle
+   and breaks the build.
+2. **Every mutating Server Action must call `requireRole()` itself.** The proxy is a
+   UX redirect, not the security boundary: Server Actions are directly POST-able once
+   their action ID reaches the client bundle.
 
 ## Roadmap
 
 - [x] **Phase 0** — Brand & UI direction (dark stadium-under-lights identity)
 - [x] **Phase 1** — Next.js scaffold, homepage ported to real components on mock data
-- [ ] **Phase 2** — Backend & DB: MongoDB schemas (Matches, Tips, Articles, Teams), admin CRUD for daily tips/news
+
+**Phase 2 — CMS** (in progress)
+
+- [x] **2A** — MongoDB models, Auth.js with roles, seed script
+- [x] **2B** — Admin shell, staff accounts CRUD, audit trail
+- [ ] **2C** — Content CRUD: articles, tips, highlights, scores, standings (+ Cloudinary uploads)
+- [ ] **2D** — Wire the public homepage to the database
+- [ ] **2E** — Public pages (`/scores`, `/tips`, `/news`, `/transfers`, `/highlights`, article detail), real navigation, About & Privacy
+
+**Later**
+
 - [ ] **Phase 3** — Live data: real-time score updates, caching layer
 - [ ] **Phase 4** — Automation: third-party sports data API integration, scheduled jobs
-- [ ] **Phase 5** — PWA, auth, push notifications, growth features
+- [ ] **Phase 5** — PWA, push notifications, public accounts, growth features
 
-Also planned: Scores page, Tips archive page, Match/Article detail pages, league
-standings pages — using the same design system established here.
+### Known limitations
+
+- **Live scores are manual.** There is no score feed yet, so the ticker's status line
+  (`76'`, `FT`, `Today 20:00`) is typed by hand in the CMS. Phase 4 automates this.
+- **No email.** Account creation hands over a temporary password out of band; there is
+  no invite email or password-reset flow.
 
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-29 — CMS foundations: database, authentication, staff accounts, audit trail
+
+Phases 2A and 2B. The site now has a real backend and a working CMS shell; content
+CRUD lands next.
+
+- **Database:** MongoDB via Mongoose with a hot-reload-safe cached connection, and
+  models for articles, tips, highlights, matches, standings, users and audit entries.
+  A partial unique index enforces "only one featured article" at the database level,
+  so a racing double-submit can't produce two homepage heroes.
+- **Authentication:** Auth.js v5 with email/password (bcrypt) and JWT sessions. The
+  config is deliberately split — `auth.config.ts` stays free of Mongoose and bcrypt so
+  the edge proxy can authorize `/admin` from the JWT alone with no database round-trip.
+- **Roles:** administrator, moderator, and an inert `user` role scaffolded for future
+  public accounts. Route protection plus per-action `requireRole()` checks, since
+  Server Actions are directly POST-able and the proxy alone is not a security boundary.
+- **Staff accounts:** full CRUD for administrators, with guards against demoting
+  yourself, deleting your own account, or removing the last remaining admin.
+- **Audit trail:** every mutation records actor, action, entity and full before/after
+  document snapshots — so deletes stay meaningful after the record is gone, and a
+  future diff view comes for free. Password hashes are stripped from snapshots.
+  Administrators see the whole log; moderators see only their own actions.
+- **Seeding:** `npm run seed` migrates the previous mock content into real documents
+  (with generated slugs and real article bodies) and creates the first admin from env
+  vars. Idempotent by default, with `--reset` to wipe and re-seed content only.
+- **Verified end to end** against a real MongoDB: seeding and idempotency, the
+  featured-article constraint, accented slug generation (`Mbappé` → `mbappe`), correct
+  rejection of bad passwords, staff-only sign-in, moderators blocked from admin-only
+  areas, audit snapshots containing no password hashes, and `revalidatePath` refreshing
+  lists immediately after a change.
 
 ### 2026-07-29 — Initial build: homepage design + Next.js port
 
