@@ -17,17 +17,38 @@ const BASE_URL = "https://api.football-data.org/v4";
  * Competitions we pull. All are on the free tier — adding a paid-only code makes the
  * whole request fail rather than just omitting that competition.
  */
+/**
+ * Every competition this key can access — confirmed by querying /competitions, since
+ * requesting one that isn't on the plan makes the whole request 403 rather than just
+ * omitting it.
+ *
+ * Note how few run over the European summer: in late July only the Brazilian Série A
+ * and Copa Libertadores are active, because every European league starts in August.
+ * That's why the ticker looks sparse out of season rather than anything being broken.
+ *
+ * Europa League and Conference League are NOT on the free tier (they 403). Getting
+ * the breadth a site like LiveScore shows means a paid plan or a second provider —
+ * see TODO.md.
+ */
 export const TRACKED_COMPETITIONS = [
+  // Europe's big five — August to May
   { code: "PL", name: "Premier League" },
   { code: "PD", name: "La Liga" },
   { code: "SA", name: "Serie A" },
   { code: "BL1", name: "Bundesliga" },
   { code: "FL1", name: "Ligue 1" },
+  // Other European
   { code: "CL", name: "Champions League" },
   { code: "DED", name: "Eredivisie" },
   { code: "PPL", name: "Primeira Liga" },
   { code: "ELC", name: "Championship" },
+  // South America — runs through the European off-season, so it keeps the
+  // ticker populated in June, July and December
   { code: "BSA", name: "Brasileirão" },
+  { code: "CLI", name: "Copa Libertadores" },
+  // Tournaments — dormant most years, free to include
+  { code: "WC", name: "FIFA World Cup" },
+  { code: "EC", name: "European Championship" },
 ] as const;
 
 /** Provider status values, per the v4 docs. */
@@ -266,13 +287,30 @@ function toFeedMatch(match: ProviderMatch): FeedMatch | null {
  * One request covers every competition, which matters on a 10-per-minute budget —
  * looping per competition would cost ten requests for the same data.
  */
+/** The provider rejects any range longer than this with a 400. */
+const MAX_WINDOW_DAYS = 10;
+
 export async function fetchMatches({
   daysBack = 1,
   daysForward = 2,
 }: { daysBack?: number; daysForward?: number } = {}): Promise<FeedMatch[]> {
+  // Clamp rather than let the provider 400. Widening the window is a tempting
+  // one-line change, and the failure it causes ("Specified period must not exceed
+  // 10 days") wouldn't obviously point back to here.
+  let back = Math.max(0, daysBack);
+  let forward = Math.max(0, daysForward);
+  if (back + forward + 1 > MAX_WINDOW_DAYS) {
+    const scale = (MAX_WINDOW_DAYS - 1) / (back + forward);
+    back = Math.floor(back * scale);
+    forward = Math.floor(forward * scale);
+    console.warn(
+      `Requested window exceeds the provider's ${MAX_WINDOW_DAYS}-day limit; clamped to -${back}/+${forward} days.`,
+    );
+  }
+
   const iso = (date: Date) => date.toISOString().slice(0, 10);
-  const from = new Date(Date.now() - daysBack * 86_400_000);
-  const to = new Date(Date.now() + daysForward * 86_400_000);
+  const from = new Date(Date.now() - back * 86_400_000);
+  const to = new Date(Date.now() + forward * 86_400_000);
 
   const competitions = TRACKED_COMPETITIONS.map((c) => c.code).join(",");
   const data = await request<{ matches?: ProviderMatch[] }>(
