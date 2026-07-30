@@ -278,7 +278,7 @@ design/
   homepage-mockup.html      # original static design reference
 ```
 
-### Two rules worth knowing before adding code
+### Three rules worth knowing before adding code
 
 1. **`lib/constants.ts` must never import Mongoose.** Client Components, Zod schemas
    and the edge proxy all import from it. Put shared enums there, not in a model file
@@ -287,6 +287,14 @@ design/
 2. **Every mutating Server Action must call `requireRole()` itself.** The proxy is a
    UX redirect, not the security boundary: Server Actions are directly POST-able once
    their action ID reaches the client bundle.
+
+3. **Public read helpers degrade; the CMS must not.** Everything in `src/lib/data/` wraps
+   its query in `publicRead()`, so an unreachable database renders the page with empty
+   sections instead of a 500 — one sidebar widget failing shouldn't cost a reader the
+   whole homepage. **Never** use that wrapper in the CMS or in a Server Action: an admin
+   shown an empty article list would reasonably think their content had been deleted, and
+   a mutation that swallowed a connection error would tell an editor their edit saved
+   when it didn't. Those paths fail loudly on purpose.
 
 ## Roadmap
 
@@ -325,6 +333,33 @@ pick an item up without prior context.
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-30 — The site survives a database outage
+
+An Atlas connection failure in development exposed that **any** failing data read took
+down the whole route: `GET / 500 in 13.0s`, because one widget couldn't reach Mongo. For a
+site whose whole pitch is loading fast on a weak connection, that's the wrong failure
+mode.
+
+- **Public read helpers now degrade instead of throwing.** All 18 of them wrap their query
+  in `publicRead()`, so an unreachable database renders each section's existing
+  empty state rather than an error page. Verified by building and serving with the URI
+  pointed at an unroutable host: every public route returns 200 in ~4ms, and the build —
+  which previously failed outright — prerenders all 29 pages.
+- **The CMS deliberately still fails loudly.** An admin shown an empty article list would
+  reasonably conclude their content had been deleted, and a Server Action that swallowed a
+  connection error would tell an editor their edit saved when it hadn't. Quiet degradation
+  is only correct where the alternative is showing a reader an error for something they
+  didn't ask about.
+- **A failed connection now has a 5-second cooldown.** Without it every request paid the
+  full 3-attempt retry budget (~13s), so one outage made every page a 13-second wait and
+  pointed a reconnect storm at Atlas from every concurrent request.
+- Failure logging is throttled to one line per 10 seconds, so an outage doesn't write a
+  line per widget per request across every worker.
+
+Known trade-off, logged in `TODO.md`: during an outage a section says "No tips posted yet
+today" rather than "temporarily unavailable". Better than a 500, still not strictly
+accurate.
 
 ### 2026-07-30 — Match reports generated without an LLM
 

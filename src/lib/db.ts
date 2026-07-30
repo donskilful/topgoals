@@ -21,8 +21,27 @@ const cached: MongooseCache = globalForMongoose._mongooseCache ?? {
 
 globalForMongoose._mongooseCache = cached;
 
+/**
+ * How long to stop re-attempting after a failed connection.
+ *
+ * Without this, every request pays the full retry budget (~13s) while the database is
+ * unreachable, so one outage turns every page into a 13-second wait and hammers Atlas
+ * with a reconnect storm from every concurrent request. Short enough that recovery is
+ * noticed within seconds.
+ */
+const FAILURE_COOLDOWN_MS = 5_000;
+
+let lastFailureAt = 0;
+let lastFailure: unknown = null;
+
 export async function dbConnect(): Promise<typeof mongoose> {
   if (cached.conn) return cached.conn;
+
+  // Still inside the cooldown from a recent failure — fail immediately with the same
+  // error rather than making the caller wait through another full retry cycle.
+  if (lastFailure && Date.now() - lastFailureAt < FAILURE_COOLDOWN_MS) {
+    throw lastFailure;
+  }
 
   // Read lazily rather than at module scope: ES imports are hoisted above any
   // dotenv/loadEnvConfig call in a script's body, so a module-level read would
@@ -41,9 +60,12 @@ export async function dbConnect(): Promise<typeof mongoose> {
 
   try {
     cached.conn = await cached.promise;
+    lastFailure = null;
   } catch (error) {
     // Clear the rejected promise so the next call retries instead of replaying it.
     cached.promise = null;
+    lastFailure = error;
+    lastFailureAt = Date.now();
     throw error;
   }
 

@@ -2,6 +2,7 @@ import { dbConnect } from "@/lib/db";
 import { SourceLink } from "@/lib/models/source-link";
 import { relativeTime } from "@/lib/format";
 import type { ArticleCategory } from "@/lib/constants";
+import { publicRead } from "@/lib/data/public-read";
 
 export type HeadlineLink = {
   id: string;
@@ -34,12 +35,14 @@ function toHeadline(link: {
 export async function getHeadlines(
   { category, limit = 10 }: { category?: ArticleCategory; limit?: number } = {},
 ): Promise<HeadlineLink[]> {
-  await dbConnect();
+  return publicRead("getHeadlines", [], async () => {
+    await dbConnect();
 
-  const links = await SourceLink.find(category ? { category } : {})
-    .sort({ publishedAt: -1 })
-    .limit(limit)
-    .lean();
+    const links = await SourceLink.find(category ? { category } : {})
+      .sort({ publishedAt: -1 })
+      .limit(limit)
+      .lean();
 
-  return links.map(toHeadline);
+    return links.map(toHeadline);
+  });
 }
