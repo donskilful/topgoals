@@ -68,50 +68,59 @@ wrapper exists, and it closes the loop for the person who wrote in.
 
 ---
 
-## 2. Wire up the newsletter signup
+## 2. Automate news and transfer ingestion
 
-**Priority: high** · Effort: ~2 hours
+**Priority: high** · Effort: 3–5 days · The biggest remaining piece of work
 
 ### The problem
 
-The "Get Tips First" card in the homepage sidebar
-(`src/components/sidebar/newsletter-card.tsx`) has an email input and a **Join
-button that does nothing.** The form has no `action`, so submitting it reloads the
-page and silently discards the address. It also claims "Join 40,000+ punters",
-which is invented placeholder copy and should not ship as-is.
+Articles are written by hand in the CMS. The plan is for news and transfer stories to
+arrive automatically, the way scores now do.
 
-This is the most visible broken promise on the site — worth fixing or removing
-before launch.
+This is materially harder than the score sync, and worth being clear-eyed about why:
+scores are *structured facts* with one correct answer, while news is prose. Republishing
+someone else's article wholesale is copyright infringement, and Google penalises
+scraped duplicate content — so the naive version of this is both a legal and an SEO
+problem.
 
-### What done looks like
+### Three viable approaches, in increasing order of effort
 
-Submitting a valid email stores it and shows a confirmation. The subscriber list is
-viewable in the CMS. The "40,000+" claim is replaced with something true.
+**a) Headline aggregation with attribution.** Pull RSS/Atom feeds from reputable
+sources, store headline, source name, link and timestamp, and render them as a "from
+around the web" list that links out. Legally clean, cheap, and quick — but the reader
+leaves your site, so it doesn't build the archive.
 
-### Suggested approach
+**b) LLM-assisted rewriting with a human gate.** Ingest feeds, have a model draft an
+original summary, and hold it as a **draft** for a moderator to approve. This is the
+approach that fits the existing CMS: it reuses the Article model, it keeps a human
+accountable for what publishes, and the audit log already records who approved what.
+Needs a `status: draft | published` field on Article and a review queue.
 
-Follow the pattern the contact form already established — it's the closest analogue
-and was built to be copied:
+**c) Fully automatic publishing.** Only sane once (b) has run long enough to trust the
+draft quality. Even then, keep a kill switch.
 
-1. `src/lib/models/subscriber.ts` — `{ email (unique, lowercase), source, createdAt,
-   unsubscribedAt }`. Keep unsubscribes as a timestamp rather than deleting, so a
-   re-subscribe doesn't look like a new signup.
-2. `src/lib/schemas/newsletter.ts` — email plus a honeypot, mirroring
-   `src/lib/schemas/contact.ts`.
-3. `src/lib/actions/newsletter.ts` — a public action (no `requireRole`, like
-   `submitContactMessage`). Treat a duplicate email as success, not an error: telling
-   a stranger "that address is already subscribed" leaks who is on the list.
-4. Convert `newsletter-card.tsx` to a Client Component using `useActionState`, and
-   swap the invented count for real copy.
-5. `/admin/subscribers` list page with a CSV export, so the list can be moved into a
-   real mail tool later.
+**Recommendation: build (a) first** — it's a day's work and immediately useful — then
+(b) behind a moderation queue. Skip (c) until the drafts are demonstrably good.
 
-### Decide before building
+### If you go with (b), decisions to make first
 
-Where do tips actually get sent from? If it's Telegram (the copy currently says
-"straight to Telegram"), collecting emails is the wrong field entirely and this
-should capture a Telegram handle, or link to the channel instead. **Resolve the copy
-question before writing the model.**
+- **Which sources?** Check each one's terms; some feeds explicitly forbid derivative
+  use. BBC Sport, Sky Sports and the major agencies all differ.
+- **Which model?** Any of the current Claude models handles summarisation well. Cost is
+  per-article and small, but it's a real running cost unlike everything else here.
+- **How is provenance shown?** Readers should be able to see where a story came from.
+  That's both honest and a defence if a source complains.
+- **What stops duplicates?** The same transfer gets reported by ten outlets. Cluster on
+  entities/similarity before drafting, or you'll publish the same story ten times.
+
+### Files this will touch
+
+- `src/lib/models/article.ts` — add `status`, `sourceName`, `sourceUrl`, `externalId`
+- A new `src/lib/sync/news.ts`, mirroring `src/lib/sync/matches.ts`
+- `src/app/api/cron/news/route.ts` plus a second entry in `vercel.json`
+- The admin articles list needs a Drafts tab and an approve action
+- Public article queries need `status: "published"` added — **easy to forget, and
+  forgetting it publishes every unreviewed draft**
 
 ---
 
@@ -151,42 +160,20 @@ double-submits and lazy spam with no new infrastructure.
 
 ---
 
-## 4. Automate live scores
+## 4. Automate live scores — ✅ done (30 Jul 2026)
 
-**Priority: medium** · Effort: 2–3 days
+Implemented with football-data.org. See the "Live scores" section of the README for
+how it works, and `src/lib/football-data.ts` / `src/lib/sync/matches.ts`.
 
-### The problem
+Remaining follow-ups if you want to go further:
 
-Scores are typed by hand. `Match.meta` is free text (`"76'"`, `"FT"`, `"Today
-20:00"`) that a human keeps current during a match. That's unsustainable beyond a
-handful of fixtures, and the `/scores` page admits the delay to visitors.
-
-### Suggested approach
-
-1. Pick a data provider. [API-Football](https://www.api-football.com) (via
-   RapidAPI) is the usual starting point — free tier around 100 requests/day, which
-   is enough for a few leagues if polling is coarse. Check the terms: some providers
-   forbid redistributing odds or storing data long-term.
-2. Add `externalId` to the `Match` model so fetched fixtures can be matched to
-   existing rows instead of duplicated.
-3. A cron route (`src/app/api/cron/scores/route.ts`) protected by a shared secret
-   header, wired to Vercel Cron. Poll more often during match windows than overnight.
-4. Derive `status` and `meta` from the feed rather than storing what a human typed,
-   but **keep manual override possible** — feeds get things wrong, and a wrong score
-   on a betting site is worse than a late one.
-5. Call `revalidatePath("/")` and `revalidatePath("/scores")` after each update, the
-   same way the CMS actions do (see `src/lib/actions/revalidate.ts`).
-
-### Watch out for
-
-- The homepage has a 60-second revalidate window, so polling faster than that
-  achieves nothing visible. Match the two.
-- Free tiers rate-limit hard. Cache aggressively and back off on 429s.
-- Once this lands, remove the "scores are updated manually" note from
-  `src/app/scores/page.tsx` and the corresponding line in the README's known
-  limitations.
-
----
+- **Standings aren't synced yet**, only matches. The provider exposes
+  `/competitions/{code}/standings`, but that's one request per competition — ten
+  requests against a 10/minute budget. Sync it on a slower schedule (hourly is plenty;
+  tables don't change mid-match) rather than alongside scores.
+- **Only 10 competitions.** Nigerian NPFL and most non-European leagues aren't on the
+  free tier. They can still be added by hand, and the sync leaves them alone.
+- **No goal-scorer or lineup data** on the free tier.
 
 ## 5. Password reset for staff
 
@@ -242,6 +229,7 @@ If that's more than is wanted right now, **delete the button** and reopen this l
 | No pagination on public lists | `/news`, `/transfers`, `/highlights`, `/tips` | Capped at 24–60 items. Fine for now; will silently hide content as the archive grows. |
 | Single league in the table | `StandingRow.competition` | The field and index support multiple competitions, but nothing surfaces a second one. `DEFAULT_COMPETITION` in `lib/constants.ts` is the current assumption. |
 | Timezones | `lib/format.ts` | All times render in the server's zone with `en-GB` formatting. A reader in Lagos sees UK kick-off times. Consider storing a display timezone, or rendering client-side. |
+| Newsletter / Telegram delivery | Removed for now | The card promised Telegram delivery behind a dead button; tips live on the site instead. If delivery is wanted later, decide email vs Telegram *first* — it changes what the signup collects. |
 | No image on most articles | Cloudinary is wired but seeded content has none | Article cards fall back to a gradient block. Upload real images via the CMS. |
 | `user` role is inert | `lib/constants.ts` | Scaffolded for future public accounts (favourites, notifications). Nothing reads it; it cannot access the CMS. |
 | No tests | — | Verification has been manual so far. Vitest plus a couple of integration tests around the Zod schemas and the tip-stats aggregation would protect the highest-risk logic. |

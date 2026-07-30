@@ -4,8 +4,8 @@ A fast, mobile-first football (soccer) hub — live scores, daily betting tips w
 tracked results, transfer news, sports news, and goals & highlights, all built to
 feel instant even on a poor connection.
 
-> **Status:** The CMS is complete and the whole public site runs on real data.
-> Next up: automating live scores and news ingestion.
+> **Status:** The CMS is complete, the public site runs on real data, and live
+> scores update automatically. Next up: automating news and transfer ingestion.
 
 ## Why this stack
 
@@ -30,7 +30,8 @@ audience on mobile, often on weak connections.
 - **Database:** MongoDB Atlas + Mongoose
 - **Auth:** Auth.js v5 (credentials + JWT sessions)
 - **Media:** Cloudinary, signed uploads straight from the browser
-- **Planned:** Redis caching, Socket.IO/SSE for live scores, PWA layer
+- **Live scores:** football-data.org, polled by Vercel Cron
+- **Planned:** Redis caching, automated news ingestion, PWA layer
 
 ## Design system
 
@@ -67,6 +68,11 @@ Then fill in `.env.local`:
    step below. Change the password after your first sign-in.
 4. **Cloudinary keys** — from your Cloudinary dashboard (*Settings → API Keys*).
    Needed for article images and highlight videos.
+5. **`FOOTBALL_DATA_API_KEY`** — free, no card, instant:
+   [football-data.org/client/register](https://www.football-data.org/client/register).
+   Enables automatic live scores. Optional — without it, scores are entered by hand.
+6. **`CRON_SECRET`** — any long random string (`openssl rand -base64 32`). Guards the
+   score-sync endpoint so nobody else can trigger it.
 
 Seed the database with starter content and your admin account, then start the app:
 
@@ -84,6 +90,31 @@ npm run lint             # ESLint
 npm run seed             # create admin; seed content only if empty
 npm run seed -- --reset  # wipe and re-seed content (never touches accounts)
 ```
+
+## Live scores
+
+Scores come from [football-data.org](https://www.football-data.org) — chosen because
+its free tier is a permanent **10 requests/minute** across 12 competitions, rather
+than a daily cap a live-score poller would exhaust within hours of a matchday.
+
+Ten competitions are tracked: Premier League, La Liga, Serie A, Bundesliga, Ligue 1,
+Champions League, Eredivisie, Primeira Liga, the Championship and Brazilian Série A.
+One request covers all of them.
+
+Vercel Cron hits `/api/cron/scores` every 5 minutes (see `vercel.json`), which matches
+the homepage's own 60-second revalidation — polling faster would achieve nothing
+visible. There's also a **Sync now** button in the CMS for forcing a refresh mid-match.
+
+Three rules stop the feed and the CMS fighting each other:
+
+1. **Fixtures are matched on `externalId`**, so repeated syncs update rows rather than
+   duplicating them.
+2. **Editing a synced match freezes it.** Feeds get scores wrong, and on a betting site
+   a correction must not be silently reverted by the next poll — so a hand-edited
+   fixture is flagged and skipped from then on. The matches list marks every row
+   `auto`, `edited` or `manual`.
+3. **The sync never deletes.** A provider outage can't empty the ticker, and
+   competitions outside the free tier can still be added by hand.
 
 ## Roles
 
@@ -121,6 +152,7 @@ src/
     about/ privacy/          # static, not CMS-managed
     api/auth/[...nextauth]/  # Auth.js route handler
     api/cloudinary/sign/     # issues signed upload signatures
+    api/cron/scores/         # score sync, called by Vercel Cron
   components/
     site-header.tsx, hero.tsx, live-ticker.tsx, trust-strip.tsx,
     todays-picks.tsx, goals-highlights.tsx, latest-news.tsx,
@@ -135,6 +167,8 @@ src/
     form-state.ts                # shared Server Action result shape
     cloudinary.ts                 # server-only Cloudinary client
     slug.ts                        # slug generation + uniqueness
+    football-data.ts                # live-score provider client
+    sync/matches.ts                  # feed -> database upsert rules
     models/                         # Mongoose schemas
     schemas/                         # Zod validation
     actions/                          # 'use server' mutations
@@ -180,8 +214,9 @@ pick an item up without prior context.
 
 ### Known limitations
 
-- **Live scores are manual.** There is no score feed yet, so the ticker's status line
-  (`76'`, `FT`, `Today 20:00`) is typed by hand in the CMS. Phase 4 automates this.
+- **Live scores need a free API key.** Add `FOOTBALL_DATA_API_KEY` and scores update
+  themselves every 5 minutes across 10 competitions. Without it, matches are still
+  maintained by hand in the CMS, and `/scores` tells readers so.
 - **No email.** Account creation hands over a temporary password out of band; there is
   no invite email or password-reset flow. Contact form messages land in the CMS inbox
   rather than an email inbox, so someone needs to check `/admin/messages`.
@@ -192,6 +227,37 @@ pick an item up without prior context.
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-30 — Automatic live scores, and everything pinned to GMT+1
+
+- **Live scores now update themselves.** Integrated football-data.org, chosen over
+  API-Football because its free tier is 10 requests/minute across 12 competitions
+  rather than 100 requests/day — a live poller would burn a daily cap before
+  half-time. Ten competitions in a single request, every 5 minutes via Vercel Cron,
+  plus a **Sync now** button for forcing a refresh mid-match.
+- **The feed can't overwrite a human.** Editing a synced fixture flags it and the sync
+  skips it from then on, because feeds get scores wrong and a correction that silently
+  reverts is worse than no automation. Rows are marked `auto`, `edited` or `manual`.
+  Hand-added matches (for competitions the free tier misses) are never touched, and
+  the sync never deletes, so a provider outage can't empty the ticker.
+- **The status line is derived, not typed.** `76'`, `HT`, `FT`, `Postponed` and
+  kick-off times all come from the feed's status and minute, so the field that used to
+  go stale between manual updates can't any more.
+- **All times are GMT+1** — and, the subtle half, the CMS now parses and formats
+  `datetime-local` in that zone too. Previously a bare "20:00" was read in the
+  server's timezone, so the same entry stored a different instant locally than on
+  Vercel and drifted further on every re-save. Verified lossless with the server
+  forced to UTC, New York, Tokyo and London.
+- **Replaced the newsletter card**, whose Join button did nothing and which promised
+  tips "straight to Telegram" — not the plan, since tips live on the site. It now
+  shows the real track record: computed win rate, profit and recent results.
+- **Fixed a bug the tests surfaced**: `revalidatePath` throws outside a Next request
+  context and ran *after* the database write, so a successful sync reported failure
+  when called from a script. Cache invalidation is now best-effort.
+- Verified the provider mapping against realistic payloads (including unconfirmed
+  knockout fixtures with null team names), the upsert rules against the live cluster,
+  and that the cron endpoint returns 401 on a wrong secret and refuses to run without
+  one at all.
 
 ### 2026-07-30 — Fixes from the first real run-through of the CMS
 

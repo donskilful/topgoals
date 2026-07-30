@@ -83,10 +83,16 @@ export async function updateMatch(_prevState: FormState, formData: FormData): Pr
     const before = await Match.findById(id).lean();
     if (!before) return formError("That match no longer exists.");
 
-    const updated = await Match.findByIdAndUpdate(id, fields, {
-      new: true,
-      runValidators: true,
-    }).lean();
+    const updated = await Match.findByIdAndUpdate(
+      id,
+      {
+        ...fields,
+        // A human has now had the last word on this fixture. Flagging it stops the
+        // score sync reverting the correction on its next run.
+        ...(before.externalId ? { manualOverride: true } : {}),
+      },
+      { new: true, runValidators: true },
+    ).lean();
 
     const scoreChanged =
       before.homeScore !== fields.homeScore || before.awayScore !== fields.awayScore;
@@ -96,9 +102,13 @@ export async function updateMatch(_prevState: FormState, formData: FormData): Pr
       action: "update",
       entityType: "Match",
       entityId: id,
-      summary: scoreChanged
-        ? `Updated score ${describe(fields)} — ${fields.homeScore}-${fields.awayScore} (${fields.meta})`
-        : `Updated match ${describe(fields)}`,
+      summary:
+        (scoreChanged
+          ? `Updated score ${describe(fields)} — ${fields.homeScore}-${fields.awayScore} (${fields.meta})`
+          : `Updated match ${describe(fields)}`) +
+        (before.externalId && !before.manualOverride
+          ? " — now excluded from automatic sync"
+          : ""),
       before,
       after: updated,
     });

@@ -7,6 +7,9 @@ import type { MatchStatus } from "@/lib/constants";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { DeleteRowForm } from "@/components/admin/delete-row-form";
 import { SavedBanner } from "@/components/admin/saved-banner";
+import { isFootballDataConfigured, TRACKED_COMPETITIONS } from "@/lib/football-data";
+import { relativeTime } from "@/lib/format";
+import { SyncButton } from "./sync-button";
 
 const STATUS_BADGES: Record<MatchStatus, string> = {
   live: "bg-[rgba(255,71,87,0.14)] text-whistle",
@@ -25,6 +28,12 @@ export default async function MatchesPage({
 
   const matches = await Match.find().sort({ kickoffAt: 1 }).lean();
   const live = matches.filter((m) => m.status === "live").length;
+  const autoSynced = matches.filter((m) => m.externalId).length;
+  const feedConnected = isFootballDataConfigured();
+  const lastSync = matches
+    .map((m) => m.lastSyncedAt)
+    .filter((d): d is Date => Boolean(d))
+    .sort((a, b) => b.getTime() - a.getTime())[0];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -37,6 +46,32 @@ export default async function MatchesPage({
         }
         action={{ label: "Add match", href: "/admin/matches/new" }}
       />
+
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4 rounded-xl border border-line bg-charcoal p-4">
+        <div className="max-w-[46ch]">
+          <p className="text-[13px] font-bold">
+            {feedConnected ? "Scores update automatically" : "Automatic scores not connected"}
+          </p>
+          <p className="mt-1 text-[12px] leading-relaxed text-floodlight-dim">
+            {feedConnected ? (
+              <>
+                {autoSynced} of {matches.length} fixtures come from football-data.org, covering{" "}
+                {TRACKED_COMPETITIONS.length} competitions.{" "}
+                {lastSync ? `Last update ${relativeTime(lastSync)}.` : "Waiting for the first sync."}{" "}
+                Editing a synced match stops it being overwritten, so a wrong score you
+                correct stays corrected.
+              </>
+            ) : (
+              <>
+                Add <code className="text-floodlight-dim">FOOTBALL_DATA_API_KEY</code> to your
+                environment to pull scores automatically. Until then, every match here is
+                maintained by hand.
+              </>
+            )}
+          </p>
+        </div>
+        <SyncButton configured={feedConnected} />
+      </div>
 
       <SavedBanner show={Boolean(saved)} />
 
@@ -71,6 +106,19 @@ export default async function MatchesPage({
                       </span>
                       <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-floodlight-faint">
                         {match.competition}
+                        {match.externalId ? (
+                          match.manualOverride ? (
+                            <span className="ml-1.5 text-torch" title="Edited by hand — the feed won't overwrite it">
+                              · edited
+                            </span>
+                          ) : (
+                            <span className="ml-1.5 text-pitch-bright" title="Kept up to date automatically">
+                              · auto
+                            </span>
+                          )
+                        ) : (
+                          <span className="ml-1.5" title="Added by hand">· manual</span>
+                        )}
                       </span>
                     </td>
                     <td className={`px-4 py-3 font-mono tabular-nums ${border}`}>

@@ -15,9 +15,25 @@ const matchSchema = new Schema(
      */
     meta: { type: String, required: true, trim: true },
     kickoffAt: { type: Date, required: true },
+
+    /**
+     * The provider's fixture id, when this match came from the automated feed.
+     * Sparse-unique so repeated syncs update the same row instead of duplicating it,
+     * while hand-added matches (no externalId) don't collide with each other.
+     */
+    externalId: { type: String, default: null },
+    lastSyncedAt: { type: Date, default: null },
+    /**
+     * Set when a human edits a synced match. The sync then leaves it alone — feeds
+     * get things wrong, and a corrected score must not be silently overwritten on
+     * the next poll.
+     */
+    manualOverride: { type: Boolean, required: true, default: false },
   },
   { timestamps: true },
 );
+
+matchSchema.index({ externalId: 1 }, { unique: true, sparse: true });
 
 matchSchema.index({ kickoffAt: 1 });
 matchSchema.index({ status: 1, kickoffAt: 1 });
