@@ -103,8 +103,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
 
         <div className="flex flex-col gap-5 text-[16px] leading-[1.75] text-floodlight">
+          {/*
+            `whitespace-pre-line` so single newlines inside a paragraph survive. HTML
+            collapses them by default, which turned the generated results round-up —
+            a competition heading followed by one score per line — into a single
+            run-on line. It also means a line break typed in the CMS editor renders
+            the way the author expected.
+          */}
           {article.paragraphs.map((paragraph, i) => (
-            <p key={i}>{paragraph}</p>
+            <p key={i} className="whitespace-pre-line">
+              {paragraph}
+            </p>
           ))}
         </div>
 

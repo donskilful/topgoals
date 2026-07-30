@@ -5,6 +5,7 @@ import { TrustStrip } from "@/components/trust-strip";
 import { TodaysPicks } from "@/components/todays-picks";
 import { GoalsHighlights } from "@/components/goals-highlights";
 import { LatestNews } from "@/components/latest-news";
+import { AroundTheWeb } from "@/components/around-the-web";
 import { StandingsWidget } from "@/components/sidebar/standings-widget";
 import { TrendingTips } from "@/components/sidebar/trending-tips";
 import { TrackRecordCard } from "@/components/sidebar/track-record-card";
@@ -36,7 +37,10 @@ export default function Home() {
         </section>
 
         <section className="grid grid-cols-1 items-start gap-9 py-9 lg:grid-cols-[1fr_336px]">
-          <LatestNews />
+          <div className="flex flex-col gap-9">
+            <LatestNews />
+            <AroundTheWeb limit={6} />
+          </div>
           <aside className="flex flex-col gap-5 lg:sticky lg:top-[84px]">
             <StandingsWidget />
             <TrendingTips />

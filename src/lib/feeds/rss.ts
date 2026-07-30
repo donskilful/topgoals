@@ -1,18 +1,20 @@
 import { XMLParser } from "fast-xml-parser";
 
 /**
- * Reads public RSS feeds to learn *what happened* — never to republish how a
- * publisher said it.
+ * Reads public RSS feeds for headlines to link out to.
  *
- * Only the facts a feed states in its own summary (who, what, which club, which
- * competition, when) travel any further than this file: `src/lib/ai/draft-article.ts`
- * turns those facts into original prose, and the source's own sentences are dropped.
- * Facts about the world aren't copyrightable; the words used to report them are. That
- * distinction is the whole reason this pipeline is built the way it is, so please keep
- * summaries out of anything user-facing.
+ * Nothing a publisher wrote is republished or rewritten. Only the headline, publisher,
+ * link and timestamp are kept (see `src/lib/sync/headlines.ts`), and readers click
+ * through to the source — because the only way to turn prose into different prose
+ * without a language model is to rearrange the author's words, which is a derivative of
+ * their writing however far it drifts.
  *
- * Every article we publish links back to the sources it was reported from — see
- * `sources` on the Article model.
+ * `summary` is parsed here but deliberately **not** stored or displayed anywhere. It is
+ * used purely as a filter signal: an item with too little text behind the headline is a
+ * live blog or a stub rather than a story. Keep it that way.
+ *
+ * TopGoals' own written content is the generated match reports in `src/lib/reports/`,
+ * built from match data we licence rather than from anyone's writing.
  */
 
 /** The publishers we monitor. Both offer public RSS with no auth or key. */

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getArticlesByCategory } from "@/lib/data/articles";
 import { ArticleGrid } from "@/components/article-grid";
+import { AroundTheWeb } from "@/components/around-the-web";
 import { EmptyNotice, PageIntro, PublicPage } from "@/components/public-page";
 
 export const revalidate = 60;
@@ -25,6 +26,9 @@ export default async function TransfersPage() {
       ) : (
         <ArticleGrid articles={articles} />
       )}
+
+      {/* Other publishers' transfer headlines, linking out to them. */}
+      <AroundTheWeb category="Transfer" className="mt-12" />
     </PublicPage>
   );
 }

@@ -12,10 +12,13 @@ const mediaSchema = new Schema(
 /**
  * A publisher whose reporting an article was written from.
  *
- * Kept for two reasons: readers can follow the story back to its source, and if a
- * detail turns out to be wrong we can tell where it came from. Automated articles are
- * written from the facts these outlets reported, never from their wording — see
- * `src/lib/ai/draft-article.ts`.
+ * Readers can follow the story back to its source, and if a detail turns out to be
+ * wrong we can tell where it came from.
+ *
+ * Empty on generated match reports: those are written from `football-data.org` match
+ * data we already licence (see `src/lib/reports/`), so there is no third-party
+ * reporting to attribute. Headlines taken from other publishers aren't articles at all
+ * — they're link-outs, stored on the SourceLink model.
  */
 const sourceSchema = new Schema(
   {

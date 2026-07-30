@@ -10,6 +10,19 @@ const matchSchema = new Schema(
     awayScore: { type: String, required: true, default: NO_SCORE, trim: true },
     status: { type: String, enum: MATCH_STATUSES, required: true },
     /**
+     * Half-time score, when the feed provided one.
+     *
+     * Stored as numbers rather than the display strings above because the report
+     * templates do arithmetic on them. They're the only signal the free tier gives
+     * about how a match unfolded — no scorers, no bookings — so a comeback or a
+     * second-half collapse is inferred from the gap between these and the full-time
+     * score.
+     */
+    halfTimeHome: { type: Number, default: null },
+    halfTimeAway: { type: Number, default: null },
+    /** League matchday, for context in generated reports. Null in knockout rounds. */
+    matchday: { type: Number, default: null },
+    /**
      * Free-text status line shown on the card: "76'", "FT", "Today 20:00".
      * Manually maintained — there is no live score feed wired up yet.
      */
