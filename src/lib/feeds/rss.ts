@@ -16,6 +16,27 @@ import { XMLParser } from "fast-xml-parser";
  */
 
 /** The publishers we monitor. Both offer public RSS with no auth or key. */
+/**
+ * Every story must sit under a football section on the publisher's own site.
+ *
+ * TopGoals is a football site, and this is the guard that keeps it one. Picking the
+ * right feed is not enough on its own: feed 12040 looked like Sky's football news feed
+ * and was actually its all-sport feed, which put cricket, tennis and darts stories into
+ * the pipeline. Both publishers file football under a /football/ path, so checking the
+ * article's own URL is a check on what the story *is* rather than on which feed
+ * happened to carry it — and it keeps holding if a feed's contents change or someone
+ * adds a new source later.
+ */
+const FOOTBALL_PATH = "/football/";
+
+function isFootballStory(link: string): boolean {
+  try {
+    return new URL(link).pathname.toLowerCase().includes(FOOTBALL_PATH);
+  } catch {
+    return false;
+  }
+}
+
 export const NEWS_FEEDS = [
   {
     name: "Sky Sports",
@@ -290,6 +311,9 @@ function parseItem(raw: RawItem, source: FeedSource): FeedItem | null {
   // A headline and a link back to the source are both non-negotiable: without the
   // headline there's no story, and without the link we can't attribute it.
   if (!title || !link) return null;
+
+  // Football only — see FOOTBALL_PATH.
+  if (!isFootballStory(link)) return null;
 
   const categories = Array.isArray(raw.category)
     ? raw.category.map((entry) => toPlainText(text(entry))).filter(Boolean)
