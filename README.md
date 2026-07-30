@@ -31,7 +31,8 @@ audience on mobile, often on weak connections.
 - **Auth:** Auth.js v5 (credentials + JWT sessions)
 - **Media:** Cloudinary, signed uploads straight from the browser
 - **Live scores:** football-data.org, polled by Vercel Cron
-- **Planned:** Redis caching, automated news ingestion, PWA layer
+- **Automated news:** Sky Sports + Guardian Football RSS, drafted by Claude
+- **Planned:** Redis caching, PWA layer
 
 ## Design system
 
@@ -116,6 +117,68 @@ Three rules stop the feed and the CMS fighting each other:
 3. **The sync never deletes.** A provider outage can't empty the ticker, and
    competitions outside the free tier can still be added by hand.
 
+## Automated news
+
+News and transfer articles can be written automatically from what the public football
+feeds are reporting — **Sky Sports** (football news + Transfer Centre) and **Guardian
+Football**. Vercel Cron hits `/api/cron/news` every two hours.
+
+**How it works, and why it works this way.** The pipeline reads the feeds to learn *what
+happened*, then Claude writes TopGoals' own article from those facts. It never rewords
+anyone's sentences. That distinction is the whole design:
+
+> Facts about the world aren't copyrightable. The words a journalist chose to report
+> them are.
+
+So paraphrasing a Sky Sports article — however heavily — still produces a derivative of
+Sky's work. Reporting the same event in our own words does not. The drafting prompt in
+`src/lib/ai/draft-article.ts` enforces this, along with a hard rule against adding any
+detail the sources didn't state: no invented quotes, scores, fees or injuries. On a site
+with betting tips beside the news, a fabricated detail can cost a reader money, so the
+drafter is told to skip a story rather than pad it.
+
+Crawling the sites themselves was considered and rejected: Sky's `robots.txt` disallows
+bots, article prose and highlight video are licensed content, and republishing either
+would be infringement regardless of attribution.
+
+**Images.** Automated articles carry no photograph. Instead `ArticleArtwork` generates an
+original card from the site's own visual language — floodlit pitch geometry, seeded from
+the article slug so every story looks different and always looks the same. Reusing a
+publisher's photo would be infringement, and adding a watermark over one makes it worse,
+not lawful: sports photography is the most actively enforced category there is.
+
+**What the pipeline filters out**, because none of it can become an honest article:
+
+- Live blogs and rolling round-ups (`Transfer Centre LIVE!`, `Arsenal latest:`) — a
+  continuously edited page covering many unrelated things
+- Paper reviews, gossip and rumour columns — round-ups of other outlets' unconfirmed
+  claims, which is the most misleading thing this pipeline could publish
+- Opinion columns, identified by the Guardian's `… | Columnist Name` byline
+- Quizzes, polls, podcasts and video-only items
+- Anything with a summary too short to write from, or an unreadable date
+
+**Two things worth knowing before switching it on:**
+
+1. **Articles publish immediately — there is no review queue.** That was a deliberate
+   product decision. The guardrails are a cap of 4 articles per run, an `auto` badge and
+   source links on every article in the CMS, reader-facing disclosure on the article
+   page, and an audit-log entry attributed to a `TopGoals Automation` account that
+   cannot be signed into.
+2. **`NEWS_AUTOMATION` must equal `"on"`.** It defaults to off, so deploying the code
+   doesn't start publishing. This is the kill switch — flip it without a redeploy.
+
+Preview what a run would do, without writing anything:
+
+```bash
+npm run news:dry-run            # feeds + clustering only, no API spend
+npm run news:dry-run -- --draft # also draft the top story and print it
+```
+
+Stories reported by both publishers are merged so the drafter works from two independent
+accounts of the same event. In practice most stories are still single-source — the two
+feeds publish at very different volumes — so corroboration is a bonus, not something the
+pipeline depends on.
+
 ## Roles
 
 | Role | Can do |
@@ -168,7 +231,12 @@ src/
     cloudinary.ts                 # server-only Cloudinary client
     slug.ts                        # slug generation + uniqueness
     football-data.ts                # live-score provider client
-    sync/matches.ts                  # feed -> database upsert rules
+    automation-actor.ts              # the non-loginable identity automated writes are logged as
+    feeds/rss.ts                      # reads Sky/Guardian RSS; filters non-stories
+    feeds/cluster.ts                   # groups reports of the same event
+    ai/draft-article.ts                 # writes original prose from the facts
+    sync/matches.ts                      # score feed -> database upsert rules
+    sync/news.ts                          # news pipeline: feeds -> drafted articles
     models/                         # Mongoose schemas
     schemas/                         # Zod validation
     actions/                          # 'use server' mutations
@@ -176,6 +244,7 @@ src/
     format.ts                 # relative time, clip length, kick-off formatting
 scripts/
   seed.ts                   # starter content + bootstrap admin account
+  news-dry-run.ts           # preview what the news pipeline would publish
 design/
   homepage-mockup.html      # original static design reference
 ```
@@ -227,6 +296,53 @@ pick an item up without prior context.
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-30 — News and transfer articles write themselves
+
+- **Automated news from Sky Sports and Guardian Football.** Reads their public RSS
+  feeds for the *facts* of a story, then has Claude write TopGoals' own article from
+  those facts. Runs every two hours via Vercel Cron.
+- **Not a scraper, and not a paraphraser.** Crawling Sky was the original idea and was
+  rejected: its `robots.txt` disallows bots, and its prose and highlight video are
+  licensed content. Rewording someone's article is no better — it's still a derivative
+  work. What's actually safe is the distinction the whole pipeline is built on: facts
+  aren't copyrightable, the words chosen to report them are. So the drafter reports the
+  event and never reuses a source's phrasing.
+- **Nothing gets invented.** The prompt forbids adding any detail the sources didn't
+  state — no quotes, scores, fees or injuries — and tells the model to skip a story
+  rather than pad it. Betting tips sit next to this content; a fabricated detail can
+  cost a reader money.
+- **Original artwork instead of borrowed photos.** Automated articles have no
+  photograph, so `ArticleArtwork` generates a card from the site's own visual language,
+  seeded from the slug. Reusing a publisher's photo would be infringement, and
+  watermarking one makes it worse rather than lawful — sports photography is the most
+  actively enforced category there is. Every article without an uploaded image now gets
+  this, so the CMS benefits too.
+- **Publishes immediately, by choice.** No review queue. The guardrails are a 4-article
+  cap per run, a `NEWS_AUTOMATION` kill switch that defaults to off, an `auto` badge and
+  source links in the CMS, reader-facing disclosure on the article page, and audit
+  entries under a `TopGoals Automation` account that cannot be signed into.
+- **Junk is filtered before drafting.** Live blogs, rolling round-ups, paper reviews,
+  gossip and rumour columns, opinion pieces, quizzes and polls — none of which can
+  become an honest news article. Rumour round-ups matter most here: publishing
+  unconfirmed claims as reported fact is the worst thing this pipeline could do.
+- **Four real bugs found by running it against the live feeds**, all of which would
+  have shipped silently:
+  - Sky stamps its feed in `BST`, which `new Date()` can't parse. Every Sky item was
+    being dated "now", so the recency window did nothing and a six-day-old transfer
+    round-up would have published as breaking news.
+  - The feed I'd picked (`12040`) is Sky's *all-sport* news feed — only 8 of 20 items
+    were football, so cricket, tennis and darts were reaching a football site.
+    `11095` is the football one.
+  - Sky files the same article to both its news and transfer feeds under different
+    guids, which published each story twice. Story identity now keys on Sky's article
+    id with the feed id stripped.
+  - Cross-source clustering never fired, because headline word-overlap scores two
+    genuine reports of the same match at 0.13. It matches on shared proper nouns now,
+    which is what real headlines actually have in common.
+- **`npm run news:dry-run`** shows exactly what the next run would publish without
+  writing anything — worth using before switching automation on, given nothing is
+  reviewed.
 
 ### 2026-07-30 — Automatic live scores, and everything pinned to GMT+1
 

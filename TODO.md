@@ -68,59 +68,44 @@ wrapper exists, and it closes the loop for the person who wrote in.
 
 ---
 
-## 2. Automate news and transfer ingestion
+## 2. Automate news and transfer ingestion — ✅ done (30 Jul 2026)
 
-**Priority: high** · Effort: 3–5 days · The biggest remaining piece of work
+News and transfer articles are now written automatically from Sky Sports and Guardian
+Football RSS. See the **Automated news** section of the README for how it works and why.
 
-### The problem
+Approach taken: the LLM-drafting option, but **without** the moderation queue — the site
+owner chose immediate publication. So the `status: draft | published` field discussed in
+the original plan was never added, and the guardrails are instead a per-run cap, the
+`NEWS_AUTOMATION` kill switch, provenance on every article, and audit entries under a
+non-loginable `TopGoals Automation` account.
 
-Articles are written by hand in the CMS. The plan is for news and transfer stories to
-arrive automatically, the way scores now do.
+### Follow-ups worth doing
 
-This is materially harder than the score sync, and worth being clear-eyed about why:
-scores are *structured facts* with one correct answer, while news is prose. Republishing
-someone else's article wholesale is copyright infringement, and Google penalises
-scraped duplicate content — so the naive version of this is both a legal and an SEO
-problem.
-
-### Three viable approaches, in increasing order of effort
-
-**a) Headline aggregation with attribution.** Pull RSS/Atom feeds from reputable
-sources, store headline, source name, link and timestamp, and render them as a "from
-around the web" list that links out. Legally clean, cheap, and quick — but the reader
-leaves your site, so it doesn't build the archive.
-
-**b) LLM-assisted rewriting with a human gate.** Ingest feeds, have a model draft an
-original summary, and hold it as a **draft** for a moderator to approve. This is the
-approach that fits the existing CMS: it reuses the Article model, it keeps a human
-accountable for what publishes, and the audit log already records who approved what.
-Needs a `status: draft | published` field on Article and a review queue.
-
-**c) Fully automatic publishing.** Only sane once (b) has run long enough to trust the
-draft quality. Even then, keep a kill switch.
-
-**Recommendation: build (a) first** — it's a day's work and immediately useful — then
-(b) behind a moderation queue. Skip (c) until the drafts are demonstrably good.
-
-### If you go with (b), decisions to make first
-
-- **Which sources?** Check each one's terms; some feeds explicitly forbid derivative
-  use. BBC Sport, Sky Sports and the major agencies all differ.
-- **Which model?** Any of the current Claude models handles summarisation well. Cost is
-  per-article and small, but it's a real running cost unlike everything else here.
-- **How is provenance shown?** Readers should be able to see where a story came from.
-  That's both honest and a defence if a source complains.
-- **What stops duplicates?** The same transfer gets reported by ten outlets. Cluster on
-  entities/similarity before drafting, or you'll publish the same story ten times.
-
-### Files this will touch
-
-- `src/lib/models/article.ts` — add `status`, `sourceName`, `sourceUrl`, `externalId`
-- A new `src/lib/sync/news.ts`, mirroring `src/lib/sync/matches.ts`
-- `src/app/api/cron/news/route.ts` plus a second entry in `vercel.json`
-- The admin articles list needs a Drafts tab and an approve action
-- Public article queries need `status: "published"` added — **easy to forget, and
-  forgetting it publishes every unreviewed draft**
+- **A review queue after all.** The strongest remaining improvement. Nothing is read
+  before it reaches readers, and the cheapest version is a `status` field plus a Drafts
+  tab, exactly as originally sketched. If you add it, remember public queries must filter
+  `status: "published"` — forgetting that publishes every unreviewed draft.
+- **Watch the first week's output closely.** Read every auto-published article for a few
+  days. The `auto` badge in the CMS article list is there to make that easy. If quality
+  disappoints, `NEWS_AUTOMATION=off` stops it instantly.
+- **More sources.** Currently two publishers, and the Guardian's football feed is much
+  quieter than Sky's, so most stories are single-source. A third reputable feed would
+  make cross-source corroboration the norm rather than the exception. Check each feed's
+  terms first.
+- **Clustering is heuristic.** It matches on shared proper nouns in headlines, with a
+  12-hour window and a minimum-3-names rule (see the comments in
+  `src/lib/feeds/cluster.ts` for why each guard exists). A same-clubs match report and
+  transfer story published together could in principle still merge; the drafter is
+  instructed to skip incoherent fact sets, which is the backstop. Embeddings would be
+  the principled fix if it proves to be a real problem.
+- **Highlights are still manual.** They were part of the original automation ask and are
+  deliberately excluded: highlight video is licensed content, and embedding or
+  re-hosting a publisher's clips is a rights problem no amount of attribution fixes. The
+  legitimate routes are official club/league embeds where their terms permit it, or a
+  licensing deal.
+- **Cost is unmetered.** Drafting is a real per-article running cost, unlike everything
+  else in this project. At the 4-per-run cap and a two-hourly schedule the ceiling is
+  ~48 articles/day. Consider tracking spend if the cap is ever raised.
 
 ---
 
@@ -267,3 +252,9 @@ Not yet deployed. Before going live:
       gambling-adjacent sites attract more scrutiny than most
 - [ ] Confirm the 18+ notice and responsible-gambling links meet the requirements
       of any affiliate programme you join
+- [ ] Decide whether news automation should be on at launch. It defaults to off
+      (`NEWS_AUTOMATION`), and since nothing is reviewed before publication it is
+      worth running `npm run news:dry-run -- --draft` a few times and reading the
+      output before switching it on
+- [ ] Set `ANTHROPIC_API_KEY` in Vercel if automation is being used, and rotate it
+      if it has been shared anywhere during development

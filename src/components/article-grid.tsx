@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { NewsCard } from "@/lib/data/articles";
+import { ArticleArtwork } from "./article-artwork";
 import { Tag } from "./tag";
 
 /** Shared article listing used by /news, /transfers and article "read next" blocks. */
@@ -23,7 +24,13 @@ export function ArticleGrid({ articles }: { articles: NewsCard[] }) {
                 className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                 loading="lazy"
               />
-            ) : null}
+            ) : (
+              <ArticleArtwork
+                seed={article.slug}
+                category={article.tag}
+                className="transition-transform duration-200 group-hover:scale-105"
+              />
+            )}
           </div>
 
           <div className="flex flex-1 flex-col p-4">
