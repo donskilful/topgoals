@@ -30,6 +30,12 @@ export function HighlightForm({
     EMPTY_FORM_STATE,
   );
 
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
+
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       {isEdit ? <input type="hidden" name="id" value={highlight!.id} /> : null}
@@ -40,7 +46,7 @@ export function HighlightForm({
         name="title"
         label="Title"
         required
-        defaultValue={highlight?.title}
+        defaultValue={v("title", highlight?.title)}
         error={state.fieldErrors.title}
         placeholder="Haaland's hat-trick vs Everton"
       />
@@ -49,7 +55,7 @@ export function HighlightForm({
         name="duration"
         label="Length"
         required
-        defaultValue={highlight?.duration}
+        defaultValue={v("duration", highlight?.duration)}
         error={state.fieldErrors.duration}
         placeholder="2:14"
         hint="Minutes and seconds, e.g. 2:14."
@@ -78,7 +84,7 @@ export function HighlightForm({
         label="Published"
         type="datetime-local"
         required
-        defaultValue={highlight?.publishedAt ?? defaultPublishedAt}
+        defaultValue={v("publishedAt", highlight?.publishedAt ?? defaultPublishedAt)}
         error={state.fieldErrors.publishedAt}
       />
 

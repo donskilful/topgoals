@@ -8,7 +8,14 @@ import { logAudit } from "@/lib/audit";
 import { createMatchSchema, updateMatchSchema } from "@/lib/schemas/match";
 import { deleteSchema } from "@/lib/schemas/shared";
 import { revalidateContent } from "@/lib/actions/revalidate";
-import { formError, runAction, zodFieldErrors, type FormState } from "@/lib/form-state";
+import {
+  formError,
+  formSuccess,
+  formValues,
+  runAction,
+  zodFieldErrors,
+  type FormState,
+} from "@/lib/form-state";
 
 const ADMIN_PATH = "/admin/matches";
 
@@ -33,7 +40,11 @@ export async function createMatch(_prevState: FormState, formData: FormData): Pr
 
     const parsed = createMatchSchema.safeParse(readForm(formData));
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -50,7 +61,7 @@ export async function createMatch(_prevState: FormState, formData: FormData): Pr
 
     revalidateContent("match", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function updateMatch(_prevState: FormState, formData: FormData): Promise<FormState> {
@@ -59,7 +70,11 @@ export async function updateMatch(_prevState: FormState, formData: FormData): Pr
 
     const parsed = updateMatchSchema.safeParse({ ...readForm(formData), id: formData.get("id") });
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -90,7 +105,7 @@ export async function updateMatch(_prevState: FormState, formData: FormData): Pr
 
     revalidateContent("match", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function deleteMatch(_prevState: FormState, formData: FormData): Promise<FormState> {
@@ -118,6 +133,6 @@ export async function deleteMatch(_prevState: FormState, formData: FormData): Pr
     });
 
     revalidateContent("match", ADMIN_PATH);
-    return { ok: true, message: `Removed ${describe(before)}.`, fieldErrors: {} };
-  });
+    return formSuccess(`Removed ${describe(before)}.`);
+  }, formValues(formData));
 }

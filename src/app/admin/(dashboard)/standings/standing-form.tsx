@@ -31,6 +31,12 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
     EMPTY_FORM_STATE,
   );
 
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
+
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       {isEdit ? <input type="hidden" name="id" value={row!.id} /> : null}
@@ -41,7 +47,7 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
         name="competition"
         label="Competition"
         required
-        defaultValue={row?.competition ?? DEFAULT_COMPETITION}
+        defaultValue={v("competition", row?.competition ?? DEFAULT_COMPETITION)}
         error={state.fieldErrors.competition}
       />
 
@@ -51,14 +57,14 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
           label="Position"
           required
           inputMode="numeric"
-          defaultValue={row?.pos}
+          defaultValue={v("pos", row?.pos)}
           error={state.fieldErrors.pos}
         />
         <TextField
           name="team"
           label="Team"
           required
-          defaultValue={row?.team}
+          defaultValue={v("team", row?.team)}
           error={state.fieldErrors.team}
           placeholder="Liverpool"
         />
@@ -70,7 +76,7 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
           label="Played"
           required
           inputMode="numeric"
-          defaultValue={row?.played}
+          defaultValue={v("played", row?.played)}
           error={state.fieldErrors.played}
         />
         <TextField
@@ -78,7 +84,7 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
           label="Points"
           required
           inputMode="numeric"
-          defaultValue={row?.points}
+          defaultValue={v("points", row?.points)}
           error={state.fieldErrors.points}
         />
         <TextField
@@ -86,7 +92,7 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
           label="Goals for"
           required
           inputMode="numeric"
-          defaultValue={row?.goalsFor}
+          defaultValue={v("goalsFor", row?.goalsFor)}
           error={state.fieldErrors.goalsFor}
         />
         <TextField
@@ -94,7 +100,7 @@ export function StandingForm({ row }: { row?: StandingFormValues }) {
           label="Goals against"
           required
           inputMode="numeric"
-          defaultValue={row?.goalsAgainst}
+          defaultValue={v("goalsAgainst", row?.goalsAgainst)}
           error={state.fieldErrors.goalsAgainst}
         />
       </div>

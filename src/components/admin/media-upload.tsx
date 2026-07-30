@@ -30,7 +30,11 @@ export function MediaUpload({
   const [media, setMedia] = useState<Media | null>(initial);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const configured = Boolean(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
+  // Both are needed before rendering the widget — it throws on mount if either is
+  // missing, which would take the whole form down rather than degrading.
+  const configured = Boolean(
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+  );
   const shownError = error ?? uploadError;
 
   return (

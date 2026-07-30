@@ -17,6 +17,12 @@ const TOPIC_OPTIONS = MESSAGE_TOPICS.map((topic) => ({ value: topic, label: topi
 export function ContactForm() {
   const [state, formAction] = useActionState(submitContactMessage, EMPTY_FORM_STATE);
 
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
+
   // On success, replace the form entirely — leaving a filled-in form under a
   // "sent" banner invites people to submit the same thing twice.
   if (state.ok) {
@@ -57,7 +63,7 @@ export function ContactForm() {
         name="topic"
         label="What's this about?"
         required
-        defaultValue="General enquiry"
+        defaultValue={v("topic", "General enquiry")}
         options={TOPIC_OPTIONS}
         error={state.fieldErrors.topic}
       />

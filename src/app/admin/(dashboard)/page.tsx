@@ -6,6 +6,7 @@ import { Tip } from "@/lib/models/tip";
 import { Highlight } from "@/lib/models/highlight";
 import { Match } from "@/lib/models/match";
 import { AuditLog } from "@/lib/models/audit-log";
+import { Message } from "@/lib/models/message";
 
 const ACTION_COLOURS = {
   create: "text-pitch-bright",
@@ -33,16 +34,17 @@ export default async function AdminOverviewPage({
   const { denied } = await searchParams;
   await dbConnect();
 
-  const [articleCount, pendingTipCount, highlightCount, liveMatchCount, recentActivity] =
+  const isAdmin = actor.role === "admin";
+
+  const [articleCount, pendingTipCount, highlightCount, liveMatchCount, openMessageCount, recentActivity] =
     await Promise.all([
       Article.countDocuments(),
       Tip.countDocuments({ result: "pending" }),
       Highlight.countDocuments(),
       Match.countDocuments({ status: "live" }),
-      AuditLog.find(actor.role === "admin" ? {} : { actorId: actor.id })
-        .sort({ createdAt: -1 })
-        .limit(8)
-        .lean(),
+      Message.countDocuments({ handled: false }),
+      // The audit trail is admin-only, so moderators never load it.
+      isAdmin ? AuditLog.find().sort({ createdAt: -1 }).limit(8).lean() : Promise.resolve([]),
     ]);
 
   const stats = [
@@ -50,6 +52,7 @@ export default async function AdminOverviewPage({
     { label: "Tips pending", value: pendingTipCount, href: "/admin/tips" },
     { label: "Highlights", value: highlightCount, href: "/admin/highlights" },
     { label: "Matches live", value: liveMatchCount, href: "/admin/matches" },
+    { label: "New messages", value: openMessageCount, href: "/admin/messages" },
   ];
 
   return (
@@ -85,45 +88,60 @@ export default async function AdminOverviewPage({
         ))}
       </div>
 
-      <section className="mt-9">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-display text-xl uppercase tracking-wide">
-            {actor.role === "admin" ? "Recent activity" : "Your recent activity"}
-          </h2>
-          <Link href="/admin/activity-log" className="text-xs font-bold text-pitch-bright hover:underline">
-            Full log →
-          </Link>
-        </div>
+      {/* The audit trail is administrators-only — moderators don't see it at all. */}
+      {isAdmin ? (
+        <section className="mt-9">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-display text-xl uppercase tracking-wide">Recent activity</h2>
+            <Link
+              href="/admin/activity-log"
+              className="text-xs font-bold text-pitch-bright hover:underline"
+            >
+              Full log →
+            </Link>
+          </div>
 
-        <div className="rounded-xl border border-line bg-charcoal">
-          {recentActivity.length === 0 ? (
-            <p className="p-5 text-sm text-floodlight-dim">
-              No activity yet. Changes you make will be recorded here.
-            </p>
-          ) : (
-            <ul>
-              {recentActivity.map((entry, i) => (
-                <li
-                  key={String(entry._id)}
-                  className={`flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 ${
-                    i === recentActivity.length - 1 ? "" : "border-b border-line"
-                  }`}
-                >
-                  <span className="text-[13px]">
-                    <span className={`font-mono text-[11px] uppercase ${ACTION_COLOURS[entry.action]}`}>
-                      {entry.action}
-                    </span>{" "}
-                    {entry.summary}
-                  </span>
-                  <span className="font-mono text-[11px] text-floodlight-faint">
-                    {entry.actorName} · {relativeTime(entry.createdAt)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+          <div className="rounded-xl border border-line bg-charcoal">
+            {recentActivity.length === 0 ? (
+              <p className="p-5 text-sm text-floodlight-dim">
+                No activity yet. Content changes will be recorded here.
+              </p>
+            ) : (
+              <ul>
+                {recentActivity.map((entry, i) => (
+                  <li
+                    key={String(entry._id)}
+                    className={`flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 ${
+                      i === recentActivity.length - 1 ? "" : "border-b border-line"
+                    }`}
+                  >
+                    <span className="text-[13px]">
+                      <span
+                        className={`font-mono text-[11px] uppercase ${ACTION_COLOURS[entry.action]}`}
+                      >
+                        {entry.action}
+                      </span>{" "}
+                      {entry.summary}
+                    </span>
+                    <span className="font-mono text-[11px] text-floodlight-faint">
+                      {entry.actorName} · {relativeTime(entry.createdAt)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="mt-9 rounded-xl border border-dashed border-line bg-charcoal p-5">
+          <h2 className="mb-1.5 font-display text-xl uppercase tracking-wide">What you can do</h2>
+          <p className="text-sm leading-relaxed text-floodlight-dim">
+            Publish and edit articles, betting tips, highlights, live scores and the league table,
+            and reply to messages from readers. Anything you change goes live on the site
+            immediately.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

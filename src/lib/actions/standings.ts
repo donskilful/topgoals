@@ -8,7 +8,14 @@ import { logAudit } from "@/lib/audit";
 import { createStandingRowSchema, updateStandingRowSchema } from "@/lib/schemas/standing-row";
 import { deleteSchema } from "@/lib/schemas/shared";
 import { revalidateContent } from "@/lib/actions/revalidate";
-import { formError, runAction, zodFieldErrors, type FormState } from "@/lib/form-state";
+import {
+  formError,
+  formSuccess,
+  formValues,
+  runAction,
+  zodFieldErrors,
+  type FormState,
+} from "@/lib/form-state";
 
 const ADMIN_PATH = "/admin/standings";
 
@@ -34,7 +41,11 @@ export async function createStandingRow(
 
     const parsed = createStandingRowSchema.safeParse(readForm(formData));
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -51,7 +62,7 @@ export async function createStandingRow(
 
     revalidateContent("standing", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function updateStandingRow(
@@ -66,7 +77,11 @@ export async function updateStandingRow(
       id: formData.get("id"),
     });
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -92,7 +107,7 @@ export async function updateStandingRow(
 
     revalidateContent("standing", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function deleteStandingRow(
@@ -123,6 +138,6 @@ export async function deleteStandingRow(
     });
 
     revalidateContent("standing", ADMIN_PATH);
-    return { ok: true, message: `Removed ${before.team}.`, fieldErrors: {} };
-  });
+    return formSuccess(`Removed ${before.team}.`);
+  }, formValues(formData));
 }

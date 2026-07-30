@@ -10,7 +10,14 @@ import { uniqueSlug } from "@/lib/slug";
 import { createArticleSchema, updateArticleSchema } from "@/lib/schemas/article";
 import { deleteSchema } from "@/lib/schemas/shared";
 import { revalidateContent } from "@/lib/actions/revalidate";
-import { formError, runAction, zodFieldErrors, type FormState } from "@/lib/form-state";
+import {
+  formError,
+  formSuccess,
+  formValues,
+  runAction,
+  zodFieldErrors,
+  type FormState,
+} from "@/lib/form-state";
 
 const ADMIN_PATH = "/admin/articles";
 
@@ -57,7 +64,11 @@ export async function createArticle(
 
     const parsed = createArticleSchema.safeParse(readForm(formData));
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -80,8 +91,8 @@ export async function createArticle(
     });
 
     revalidateContent("article", ADMIN_PATH);
-    redirect(`${ADMIN_PATH}?saved=1`);
-  });
+    redirect(`${ADMIN_PATH}?category=${created.category}&saved=1`);
+  }, formValues(formData));
 }
 
 export async function updateArticle(
@@ -96,7 +107,11 @@ export async function updateArticle(
       id: formData.get("id"),
     });
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -134,8 +149,8 @@ export async function updateArticle(
     });
 
     revalidateContent("article", ADMIN_PATH);
-    redirect(`${ADMIN_PATH}?saved=1`);
-  });
+    redirect(`${ADMIN_PATH}?category=${fields.category}&saved=1`);
+  }, formValues(formData));
 }
 
 export async function deleteArticle(
@@ -167,6 +182,6 @@ export async function deleteArticle(
     });
 
     revalidateContent("article", ADMIN_PATH);
-    return { ok: true, message: `Deleted “${before.title}”.`, fieldErrors: {} };
-  });
+    return formSuccess(`Deleted “${before.title}”.`);
+  }, formValues(formData));
 }

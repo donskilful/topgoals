@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth-helpers";
+import { requireAdminOrRedirect } from "@/lib/auth-helpers";
 import { dbConnect } from "@/lib/db";
 import { AuditLog } from "@/lib/models/audit-log";
 import type { AuditAction } from "@/lib/constants";
@@ -22,14 +22,14 @@ export default async function ActivityLogPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const actor = await requireRole();
+  await requireAdminOrRedirect();
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
   await dbConnect();
 
-  // Moderators only ever see their own actions; the full log is admin-only.
-  const filter = actor.role === "admin" ? {} : { actorId: actor.id };
+  // Admin-only page, so no per-actor filtering — this is the whole trail.
+  const filter = {};
 
   const [entries, total] = await Promise.all([
     AuditLog.find(filter)
@@ -46,11 +46,7 @@ export default async function ActivityLogPage({
     <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Activity log"
-        description={
-          actor.role === "admin"
-            ? `Every content and account change, newest first. ${total} ${total === 1 ? "entry" : "entries"}.`
-            : "Your own content changes, newest first."
-        }
+        description={`Every content and account change, newest first. ${total} ${total === 1 ? "entry" : "entries"}.`}
       />
 
       {entries.length === 0 ? (

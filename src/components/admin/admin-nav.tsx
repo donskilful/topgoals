@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { UserRole } from "@/lib/constants";
 
 type NavItem = {
   label: string;
   href: string;
+  /** Path used for the active check when href carries a query string. */
+  match?: string;
   /** Omitted means every staff role may see it. */
   adminOnly?: boolean;
 };
 
 const CONTENT_ITEMS: NavItem[] = [
   { label: "Overview", href: "/admin" },
-  { label: "Articles", href: "/admin/articles" },
+  // News and Transfers are the same Article model with different categories, but
+  // they're separate sections on the public site, so the CMS mirrors that rather
+  // than making people remember the shared model.
+  { label: "News", href: "/admin/articles?category=News", match: "/admin/articles" },
+  { label: "Transfer News", href: "/admin/articles?category=Transfer", match: "/admin/articles" },
   { label: "Betting Tips", href: "/admin/tips" },
   { label: "Highlights", href: "/admin/highlights" },
   { label: "Live Scores", href: "/admin/matches" },
@@ -23,25 +29,36 @@ const CONTENT_ITEMS: NavItem[] = [
 const ADMIN_ITEMS: NavItem[] = [
   { label: "Messages", href: "/admin/messages" },
   { label: "Staff", href: "/admin/users", adminOnly: true },
-  { label: "Activity Log", href: "/admin/activity-log" },
+  { label: "Activity Log", href: "/admin/activity-log", adminOnly: true },
 ];
 
-function isActive(pathname: string, href: string): boolean {
+function isActive(pathname: string, category: string | null, item: NavItem): boolean {
   // /admin must match exactly, or it would light up on every child route.
-  if (href === "/admin") return pathname === "/admin";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (item.href === "/admin") return pathname === "/admin";
+
+  const base = item.match ?? item.href;
+  const onSection = pathname === base || pathname.startsWith(`${base}/`);
+  if (!onSection) return false;
+
+  // Two nav entries share /admin/articles, so the category decides which is active.
+  // Default to News when no category is set (e.g. after an edit redirect).
+  const itemCategory = new URLSearchParams(item.href.split("?")[1] ?? "").get("category");
+  if (!itemCategory) return true;
+  return (category ?? "News") === itemCategory;
 }
 
 function NavLink({
   item,
   pathname,
+  category,
   badge,
 }: {
   item: NavItem;
   pathname: string;
+  category: string | null;
   badge?: number;
 }) {
-  const active = isActive(pathname, item.href);
+  const active = isActive(pathname, category, item);
 
   return (
     <Link
@@ -65,6 +82,7 @@ function NavLink({
 
 export function AdminNav({ role, unreadMessages = 0 }: { role: UserRole; unreadMessages?: number }) {
   const pathname = usePathname();
+  const category = useSearchParams().get("category");
   const adminItems = ADMIN_ITEMS.filter((item) => !item.adminOnly || role === "admin");
 
   return (
@@ -81,7 +99,7 @@ export function AdminNav({ role, unreadMessages = 0 }: { role: UserRole; unreadM
           Content
         </p>
         {CONTENT_ITEMS.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} />
+          <NavLink key={item.href} item={item} pathname={pathname} category={category} />
         ))}
 
         <p className="hidden px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[1.5px] text-floodlight-faint md:block">
@@ -92,6 +110,7 @@ export function AdminNav({ role, unreadMessages = 0 }: { role: UserRole; unreadM
             key={item.href}
             item={item}
             pathname={pathname}
+            category={category}
             badge={item.href === "/admin/messages" ? unreadMessages : undefined}
           />
         ))}

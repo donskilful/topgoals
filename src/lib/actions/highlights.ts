@@ -9,7 +9,14 @@ import { destroyAsset } from "@/lib/cloudinary";
 import { createHighlightSchema, updateHighlightSchema } from "@/lib/schemas/highlight";
 import { deleteSchema } from "@/lib/schemas/shared";
 import { revalidateContent } from "@/lib/actions/revalidate";
-import { formError, runAction, zodFieldErrors, type FormState } from "@/lib/form-state";
+import {
+  formError,
+  formSuccess,
+  formValues,
+  runAction,
+  zodFieldErrors,
+  type FormState,
+} from "@/lib/form-state";
 
 const ADMIN_PATH = "/admin/highlights";
 
@@ -32,7 +39,11 @@ export async function createHighlight(
 
     const parsed = createHighlightSchema.safeParse(readForm(formData));
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -51,7 +62,7 @@ export async function createHighlight(
 
     revalidateContent("highlight", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function updateHighlight(
@@ -66,7 +77,11 @@ export async function updateHighlight(
       id: formData.get("id"),
     });
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -100,7 +115,7 @@ export async function updateHighlight(
 
     revalidateContent("highlight", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function deleteHighlight(
@@ -133,6 +148,6 @@ export async function deleteHighlight(
     });
 
     revalidateContent("highlight", ADMIN_PATH);
-    return { ok: true, message: `Deleted “${before.title}”.`, fieldErrors: {} };
-  });
+    return formSuccess(`Deleted “${before.title}”.`);
+  }, formValues(formData));
 }

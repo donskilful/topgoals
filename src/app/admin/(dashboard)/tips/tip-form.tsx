@@ -46,6 +46,12 @@ export function TipForm({
   const isEdit = Boolean(tip);
   const [state, formAction] = useActionState(isEdit ? updateTip : createTip, EMPTY_FORM_STATE);
 
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
+
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       {isEdit ? <input type="hidden" name="id" value={tip!.id} /> : null}
@@ -56,7 +62,7 @@ export function TipForm({
         name="competition"
         label="Competition"
         required
-        defaultValue={tip?.competition}
+        defaultValue={v("competition", tip?.competition)}
         error={state.fieldErrors.competition}
         placeholder="Premier League"
       />
@@ -65,7 +71,7 @@ export function TipForm({
         name="fixture"
         label="Fixture"
         required
-        defaultValue={tip?.fixture}
+        defaultValue={v("fixture", tip?.fixture)}
         error={state.fieldErrors.fixture}
         placeholder="Man United vs Liverpool"
       />
@@ -74,7 +80,7 @@ export function TipForm({
         name="pick"
         label="Selection"
         required
-        defaultValue={tip?.pick}
+        defaultValue={v("pick", tip?.pick)}
         error={state.fieldErrors.pick}
         placeholder="Over 2.5 Goals"
       />
@@ -85,7 +91,7 @@ export function TipForm({
           label="Odds"
           required
           inputMode="decimal"
-          defaultValue={tip?.odds}
+          defaultValue={v("odds", tip?.odds)}
           error={state.fieldErrors.odds}
           placeholder="1.85"
         />
@@ -93,7 +99,7 @@ export function TipForm({
           name="confidence"
           label="Confidence"
           required
-          defaultValue={String(tip?.confidence ?? 3)}
+          defaultValue={v("confidence", String(tip?.confidence ?? 3))}
           options={CONFIDENCE_OPTIONS}
           error={state.fieldErrors.confidence}
         />
@@ -104,7 +110,7 @@ export function TipForm({
         label="Kick-off"
         type="datetime-local"
         required
-        defaultValue={tip?.kickoffAt ?? defaultKickoffAt}
+        defaultValue={v("kickoffAt", tip?.kickoffAt ?? defaultKickoffAt)}
         error={state.fieldErrors.kickoffAt}
       />
 
@@ -112,7 +118,7 @@ export function TipForm({
         name="result"
         label="Result"
         required
-        defaultValue={tip?.result ?? "pending"}
+        defaultValue={v("result", tip?.result ?? "pending")}
         options={RESULT_OPTIONS}
         error={state.fieldErrors.result}
         hint="Settle this after the match — the published win rate is calculated from results."

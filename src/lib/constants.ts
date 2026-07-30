@@ -18,7 +18,7 @@ export function isStaffRole(role: unknown): role is (typeof STAFF_ROLES)[number]
 }
 
 /** CMS routes only administrators may open. Moderators are redirected away. */
-export const ADMIN_ONLY_PREFIXES = ["/admin/users"] as const;
+export const ADMIN_ONLY_PREFIXES = ["/admin/users", "/admin/activity-log"] as const;
 
 export function isAdminOnlyPath(pathname: string): boolean {
   return ADMIN_ONLY_PREFIXES.some(

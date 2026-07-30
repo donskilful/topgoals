@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cloudinary } from "@/lib/cloudinary";
+import { cloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
 import { requireRole } from "@/lib/auth-helpers";
 import { AuthorizationError } from "@/lib/errors";
 
@@ -24,9 +24,9 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  if (!process.env.CLOUDINARY_API_SECRET) {
+  if (!isCloudinaryConfigured()) {
     return NextResponse.json(
-      { error: "Cloudinary is not configured. Add the credentials to .env.local." },
+      { error: "Cloudinary is not configured. Add all three credentials to .env.local." },
       { status: 503 },
     );
   }
@@ -42,9 +42,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  // Non-null is safe: isCloudinaryConfigured() above already rejected a missing secret.
   const signature = cloudinary.utils.api_sign_request(
     paramsToSign,
-    process.env.CLOUDINARY_API_SECRET,
+    process.env.CLOUDINARY_API_SECRET!,
   );
 
   return NextResponse.json({ signature });

@@ -8,7 +8,14 @@ import { logAudit } from "@/lib/audit";
 import { createTipSchema, updateTipSchema } from "@/lib/schemas/tip";
 import { deleteSchema } from "@/lib/schemas/shared";
 import { revalidateContent } from "@/lib/actions/revalidate";
-import { formError, runAction, zodFieldErrors, type FormState } from "@/lib/form-state";
+import {
+  formError,
+  formSuccess,
+  formValues,
+  runAction,
+  zodFieldErrors,
+  type FormState,
+} from "@/lib/form-state";
 
 const ADMIN_PATH = "/admin/tips";
 
@@ -30,7 +37,11 @@ export async function createTip(_prevState: FormState, formData: FormData): Prom
 
     const parsed = createTipSchema.safeParse(readForm(formData));
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -48,7 +59,7 @@ export async function createTip(_prevState: FormState, formData: FormData): Prom
 
     revalidateContent("tip", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function updateTip(_prevState: FormState, formData: FormData): Promise<FormState> {
@@ -57,7 +68,11 @@ export async function updateTip(_prevState: FormState, formData: FormData): Prom
 
     const parsed = updateTipSchema.safeParse({ ...readForm(formData), id: formData.get("id") });
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -89,7 +104,7 @@ export async function updateTip(_prevState: FormState, formData: FormData): Prom
 
     revalidateContent("tip", ADMIN_PATH);
     redirect(`${ADMIN_PATH}?saved=1`);
-  });
+  }, formValues(formData));
 }
 
 export async function deleteTip(_prevState: FormState, formData: FormData): Promise<FormState> {
@@ -117,6 +132,6 @@ export async function deleteTip(_prevState: FormState, formData: FormData): Prom
     });
 
     revalidateContent("tip", ADMIN_PATH);
-    return { ok: true, message: `Deleted the ${before.fixture} tip.`, fieldErrors: {} };
-  });
+    return formSuccess(`Deleted the ${before.fixture} tip.`);
+  }, formValues(formData));
 }

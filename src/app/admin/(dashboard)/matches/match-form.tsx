@@ -41,6 +41,12 @@ export function MatchForm({
 }) {
   const isEdit = Boolean(match);
   const [state, formAction] = useActionState(isEdit ? updateMatch : createMatch, EMPTY_FORM_STATE);
+
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
   const [status, setStatus] = useState(match?.status ?? "upcoming");
 
   // The en dash placeholder is what the DB stores pre-kickoff; show it as empty.
@@ -56,7 +62,7 @@ export function MatchForm({
         name="competition"
         label="Competition"
         required
-        defaultValue={match?.competition}
+        defaultValue={v("competition", match?.competition)}
         error={state.fieldErrors.competition}
         placeholder="Premier League"
       />
@@ -66,7 +72,7 @@ export function MatchForm({
           name="home"
           label="Home team"
           required
-          defaultValue={match?.home}
+          defaultValue={v("home", match?.home)}
           error={state.fieldErrors.home}
           placeholder="Arsenal"
         />
@@ -74,7 +80,7 @@ export function MatchForm({
           name="homeScore"
           label="Score"
           inputMode="numeric"
-          defaultValue={scoreValue(match?.homeScore)}
+          defaultValue={v("homeScore", scoreValue(match?.homeScore))}
           error={state.fieldErrors.homeScore}
         />
       </div>
@@ -84,7 +90,7 @@ export function MatchForm({
           name="away"
           label="Away team"
           required
-          defaultValue={match?.away}
+          defaultValue={v("away", match?.away)}
           error={state.fieldErrors.away}
           placeholder="Chelsea"
         />
@@ -92,7 +98,7 @@ export function MatchForm({
           name="awayScore"
           label="Score"
           inputMode="numeric"
-          defaultValue={scoreValue(match?.awayScore)}
+          defaultValue={v("awayScore", scoreValue(match?.awayScore))}
           error={state.fieldErrors.awayScore}
         />
       </div>
@@ -111,7 +117,7 @@ export function MatchForm({
         name="meta"
         label="Status line"
         required
-        defaultValue={match?.meta}
+        defaultValue={v("meta", match?.meta)}
         error={state.fieldErrors.meta}
         placeholder={META_PLACEHOLDER[status]}
         hint="Exactly what appears on the card. There's no live feed yet, so update this by hand as the match progresses."
@@ -122,7 +128,7 @@ export function MatchForm({
         label="Kick-off"
         type="datetime-local"
         required
-        defaultValue={match?.kickoffAt ?? defaultKickoffAt}
+        defaultValue={v("kickoffAt", match?.kickoffAt ?? defaultKickoffAt)}
         error={state.fieldErrors.kickoffAt}
         hint="Used for ordering the ticker."
       />

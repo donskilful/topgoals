@@ -42,10 +42,12 @@ export type ArticleFormValues = {
 export function ArticleForm({
   article,
   defaultPublishedAt,
+  defaultCategory = "News",
   featuredElsewhere,
 }: {
   article?: ArticleFormValues;
   defaultPublishedAt: string;
+  defaultCategory?: string;
   /** Title of the currently featured article, when it isn't this one. */
   featuredElsewhere?: string | null;
 }) {
@@ -54,6 +56,12 @@ export function ArticleForm({
     isEdit ? updateArticle : createArticle,
     EMPTY_FORM_STATE,
   );
+
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
   const [featured, setFeatured] = useState(article?.featured ?? false);
 
   return (
@@ -66,7 +74,7 @@ export function ArticleForm({
         name="category"
         label="Category"
         required
-        defaultValue={article?.category ?? "News"}
+        defaultValue={v("category", article?.category ?? defaultCategory)}
         options={CATEGORY_OPTIONS}
         error={state.fieldErrors.category}
       />
@@ -75,7 +83,7 @@ export function ArticleForm({
         name="title"
         label="Headline"
         required
-        defaultValue={article?.title}
+        defaultValue={v("title", article?.title)}
         error={state.fieldErrors.title}
         placeholder="Mbappé completes move to Real Madrid"
       />
@@ -85,7 +93,7 @@ export function ArticleForm({
         label="Summary"
         required
         rows={2}
-        defaultValue={article?.excerpt}
+        defaultValue={v("excerpt", article?.excerpt)}
         error={state.fieldErrors.excerpt}
         hint="One or two sentences. Shown on cards and in search results."
       />
@@ -95,7 +103,7 @@ export function ArticleForm({
         label="Article"
         required
         rows={14}
-        defaultValue={article?.body}
+        defaultValue={v("body", article?.body)}
         error={state.fieldErrors.body}
         hint="Leave a blank line between paragraphs."
       />
@@ -114,7 +122,7 @@ export function ArticleForm({
         label="Published"
         type="datetime-local"
         required
-        defaultValue={article?.publishedAt ?? defaultPublishedAt}
+        defaultValue={v("publishedAt", article?.publishedAt ?? defaultPublishedAt)}
         error={state.fieldErrors.publishedAt}
       />
 
@@ -138,7 +146,7 @@ export function ArticleForm({
             <TextField
               name="heroEyebrow"
               label="Label above the headline"
-              defaultValue={article?.heroEyebrow}
+              defaultValue={v("heroEyebrow", article?.heroEyebrow)}
               error={state.fieldErrors.heroEyebrow}
               placeholder="Matchday · 76' Live"
             />
@@ -146,7 +154,7 @@ export function ArticleForm({
             <TextField
               name="heroHeadline"
               label="Hero headline"
-              defaultValue={article?.heroHeadline}
+              defaultValue={v("heroHeadline", article?.heroHeadline)}
               error={state.fieldErrors.heroHeadline}
               placeholder="Arsenal on the brink of a statement win"
               hint="Can differ from the article headline. Don't add line breaks — it wraps automatically."
@@ -155,7 +163,7 @@ export function ArticleForm({
             <TextField
               name="heroHeadlineAccent"
               label="Words to highlight in gold"
-              defaultValue={article?.heroHeadlineAccent}
+              defaultValue={v("heroHeadlineAccent", article?.heroHeadlineAccent)}
               error={state.fieldErrors.heroHeadlineAccent}
               placeholder="statement win"
               hint="Must be part of the hero headline above."
@@ -165,7 +173,7 @@ export function ArticleForm({
               name="heroDescription"
               label="Hero text"
               rows={3}
-              defaultValue={article?.heroDescription}
+              defaultValue={v("heroDescription", article?.heroDescription)}
               error={state.fieldErrors.heroDescription}
             />
 
@@ -173,28 +181,28 @@ export function ArticleForm({
               <TextField
                 name="heroPrimaryCtaLabel"
                 label="Main button"
-                defaultValue={article?.heroPrimaryCtaLabel}
+                defaultValue={v("heroPrimaryCtaLabel", article?.heroPrimaryCtaLabel)}
                 error={state.fieldErrors.heroPrimaryCtaLabel}
                 placeholder="Watch Highlights"
               />
               <TextField
                 name="heroPrimaryCtaHref"
                 label="Main button link"
-                defaultValue={article?.heroPrimaryCtaHref}
+                defaultValue={v("heroPrimaryCtaHref", article?.heroPrimaryCtaHref)}
                 error={state.fieldErrors.heroPrimaryCtaHref}
                 placeholder="/highlights"
               />
               <TextField
                 name="heroSecondaryCtaLabel"
                 label="Second button"
-                defaultValue={article?.heroSecondaryCtaLabel}
+                defaultValue={v("heroSecondaryCtaLabel", article?.heroSecondaryCtaLabel)}
                 error={state.fieldErrors.heroSecondaryCtaLabel}
                 placeholder="Read Match Report"
               />
               <TextField
                 name="heroSecondaryCtaHref"
                 label="Second button link"
-                defaultValue={article?.heroSecondaryCtaHref}
+                defaultValue={v("heroSecondaryCtaHref", article?.heroSecondaryCtaHref)}
                 error={state.fieldErrors.heroSecondaryCtaHref}
                 hint="Leave blank to link to this article."
               />

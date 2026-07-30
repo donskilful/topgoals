@@ -14,6 +14,7 @@ import {
 import {
   formError,
   formSuccess,
+  formValues,
   runAction,
   zodFieldErrors,
   type FormState,
@@ -36,7 +37,11 @@ export async function createUser(
     });
 
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -58,7 +63,7 @@ export async function createUser(
 
     revalidatePath("/admin/users");
     return formSuccess(`Account created for ${created.email}.`);
-  });
+  }, formValues(formData));
 }
 
 export async function updateUser(
@@ -77,7 +82,11 @@ export async function updateUser(
     });
 
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     await dbConnect();
@@ -128,7 +137,7 @@ export async function updateUser(
 
     revalidatePath("/admin/users");
     return formSuccess("Account updated.");
-  });
+  }, formValues(formData));
 }
 
 export async function deleteUser(
@@ -171,5 +180,5 @@ export async function deleteUser(
 
     revalidatePath("/admin/users");
     return formSuccess(`Deleted ${before.email}.`);
-  });
+  }, formValues(formData));
 }

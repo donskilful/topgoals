@@ -7,6 +7,7 @@ import { Message } from "@/lib/models/message";
 import { logAudit } from "@/lib/audit";
 import { contactSchema, messageIdSchema } from "@/lib/schemas/contact";
 import {
+  formValues,
   formError,
   formSuccess,
   runAction,
@@ -40,7 +41,11 @@ export async function submitContactMessage(
     });
 
     if (!parsed.success) {
-      return formError("Please fix the highlighted fields.", zodFieldErrors(parsed.error));
+      return formError(
+        "Please fix the highlighted fields.",
+        zodFieldErrors(parsed.error),
+        formValues(formData),
+      );
     }
 
     // Honeypot tripped: acknowledge as if it worked so bots get no signal, but
@@ -64,7 +69,7 @@ export async function submitContactMessage(
     return formSuccess(
       "Thanks — your message has been sent. We read everything and reply to anything that needs a reply.",
     );
-  });
+  }, formValues(formData));
 }
 
 /** Staff action: mark a message dealt with (or reopen it). */
@@ -107,7 +112,7 @@ export async function toggleMessageHandled(
 
     revalidatePath("/admin/messages");
     return formSuccess(handled ? "Marked as handled." : "Reopened.");
-  });
+  }, formValues(formData));
 }
 
 export async function deleteMessage(
@@ -139,5 +144,5 @@ export async function deleteMessage(
 
     revalidatePath("/admin/messages");
     return formSuccess("Message deleted.");
-  });
+  }, formValues(formData));
 }

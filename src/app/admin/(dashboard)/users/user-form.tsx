@@ -32,6 +32,12 @@ export function UserForm({ user }: { user?: UserFormValues }) {
     EMPTY_FORM_STATE,
   );
 
+  // Prefer what the user just submitted over the stored value: React clears
+  // uncontrolled inputs after a form action, so without this a validation error
+  // would discard everything they typed.
+  const v = (field: string, fallback?: string | number) =>
+    state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
+
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       {isEdit ? <input type="hidden" name="id" value={user!.id} /> : null}
@@ -42,7 +48,7 @@ export function UserForm({ user }: { user?: UserFormValues }) {
         name="name"
         label="Full name"
         required
-        defaultValue={user?.name}
+        defaultValue={v("name", user?.name)}
         error={state.fieldErrors.name}
         autoComplete="off"
       />
@@ -52,7 +58,7 @@ export function UserForm({ user }: { user?: UserFormValues }) {
         label="Email"
         type="email"
         required
-        defaultValue={user?.email}
+        defaultValue={v("email", user?.email)}
         error={state.fieldErrors.email}
         autoComplete="off"
       />
@@ -76,7 +82,7 @@ export function UserForm({ user }: { user?: UserFormValues }) {
         name="role"
         label="Role"
         required
-        defaultValue={user?.role ?? "moderator"}
+        defaultValue={v("role", user?.role ?? "moderator")}
         options={ROLE_OPTIONS}
         error={state.fieldErrors.role}
       />
