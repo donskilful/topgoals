@@ -1,30 +1,29 @@
 import { NextResponse } from "next/server";
-import { syncNews } from "@/lib/sync/news";
-import { isDrafterConfigured } from "@/lib/ai/draft-article";
+import { syncHeadlines } from "@/lib/sync/headlines";
+import { syncReports } from "@/lib/sync/reports";
 
-// Mongoose, the feed fetches and the Anthropic SDK all need the Node runtime.
+// Mongoose and the feed fetches both need the Node runtime.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Drafting several articles at high quality takes a while; the default 10s serverless
- * limit would kill the run partway through. 300s is Vercel's ceiling on the Pro plan
- * and comfortably covers a four-article run.
+ * Feeds are fetched in parallel but each allows up to 25s, and the report writer then
+ * does a series of database writes. That can exceed Vercel's default function timeout,
+ * which would kill the run partway through — so the ceiling is set explicitly.
  */
-export const maxDuration = 300;
+export const maxDuration = 120;
 
 /**
- * Publishes news articles written from the public football feeds. Driven by Vercel Cron
- * (see vercel.json).
+ * Refreshes the "around the web" headline list and publishes match reports.
  *
- * Three gates, all deliberate:
- *  - `CRON_SECRET` — without it a stranger who finds this URL could spend our Claude
- *    budget and flood the site with articles.
- *  - `NEWS_AUTOMATION` — the kill switch. Set it to anything other than "on" and the
- *    pipeline stops, with no redeploy needed. Worth knowing where this is, because
- *    articles publish without review.
- *  - `ANTHROPIC_API_KEY` — no key, no drafting. Reported as 503 rather than failing
- *    silently.
+ * Both halves are plain JavaScript — no language model and no per-article cost. Reports
+ * are generated from finished matches already in our database, so this makes no requests
+ * to football-data.org either; the only outbound traffic is reading the two RSS feeds.
+ *
+ * Gates:
+ *  - `CRON_SECRET` — stops a stranger who finds the URL from driving the job.
+ *  - `NEWS_AUTOMATION` — kill switch. Must be exactly "on"; defaults to off, so a
+ *    deployment that merely carries the code doesn't start publishing.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -40,8 +39,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not authorised." }, { status: 401 });
   }
 
-  // Default off: automation has to be switched on explicitly, so a deployment that
-  // merely carries the code doesn't start publishing.
   if (process.env.NEWS_AUTOMATION !== "on") {
     return NextResponse.json(
       { ok: false, disabled: true, error: "News automation is switched off (NEWS_AUTOMATION)." },
@@ -49,16 +46,20 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!isDrafterConfigured()) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set." }, { status: 503 });
-  }
+  // Run both independently: a feed outage shouldn't stop reports being written from data
+  // we already hold, and a report failure shouldn't stale the headline list.
+  const [headlines, reports] = await Promise.allSettled([syncHeadlines(), syncReports()]);
 
-  try {
-    const result = await syncNews();
-    console.log("News sync:", result);
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("News sync failed:", error);
-    return NextResponse.json({ ok: false, error: "Sync failed." }, { status: 500 });
-  }
+  if (headlines.status === "rejected") console.error("Headline sync failed:", headlines.reason);
+  if (reports.status === "rejected") console.error("Report sync failed:", reports.reason);
+
+  const body = {
+    ok: headlines.status === "fulfilled" || reports.status === "fulfilled",
+    headlines: headlines.status === "fulfilled" ? headlines.value : null,
+    reports: reports.status === "fulfilled" ? reports.value : null,
+  };
+
+  console.log("Content sync:", body);
+
+  return NextResponse.json(body, { status: body.ok ? 200 : 500 });
 }

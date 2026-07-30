@@ -70,42 +70,51 @@ wrapper exists, and it closes the loop for the person who wrote in.
 
 ## 2. Automate news and transfer ingestion — ✅ done (30 Jul 2026)
 
-News and transfer articles are now written automatically from Sky Sports and Guardian
-Football RSS. See the **Automated news** section of the README for how it works and why.
+Done, but **not** the way this entry originally proposed, and the difference matters if
+you pick this up.
 
-Approach taken: the LLM-drafting option, but **without** the moderation queue — the site
-owner chose immediate publication. So the `status: draft | published` field discussed in
-the original plan was never added, and the guardrails are instead a per-run cap, the
-`NEWS_AUTOMATION` kill switch, provenance on every article, and audit entries under a
-non-loginable `TopGoals Automation` account.
+An LLM-drafting pipeline was built first, then removed in favour of plain JavaScript to
+avoid a recurring per-article cost. That works for match reports and cannot work for
+news, because:
+
+- **Match reports** are generated from structured facts we already hold (scoreline,
+  half-time score, competition, matchday). Facts aren't copyrightable and the sentences
+  are ours, so the output is original, free and deterministic.
+- **News/transfer stories** only exist as another publisher's prose. Rearranging their
+  words in JavaScript is a derivative work however far it drifts, and reads badly. So
+  those became an attributed link list ("Around the Web") that sends readers to the
+  source — option (a) from the original plan.
+
+See the README's *Automated content* section for the full shape.
 
 ### Follow-ups worth doing
 
-- **A review queue after all.** The strongest remaining improvement. Nothing is read
-  before it reaches readers, and the cheapest version is a `status` field plus a Drafts
-  tab, exactly as originally sketched. If you add it, remember public queries must filter
-  `status: "published"` — forgetting that publishes every unreviewed draft.
-- **Watch the first week's output closely.** Read every auto-published article for a few
-  days. The `auto` badge in the CMS article list is there to make that easy. If quality
-  disappoints, `NEWS_AUTOMATION=off` stops it instantly.
-- **More sources.** Currently two publishers, and the Guardian's football feed is much
-  quieter than Sky's, so most stories are single-source. A third reputable feed would
-  make cross-source corroboration the norm rather than the exception. Check each feed's
-  terms first.
-- **Clustering is heuristic.** It matches on shared proper nouns in headlines, with a
-  12-hour window and a minimum-3-names rule (see the comments in
-  `src/lib/feeds/cluster.ts` for why each guard exists). A same-clubs match report and
-  transfer story published together could in principle still merge; the drafter is
-  instructed to skip incoherent fact sets, which is the backstop. Embeddings would be
-  the principled fix if it proves to be a real problem.
-- **Highlights are still manual.** They were part of the original automation ask and are
-  deliberately excluded: highlight video is licensed content, and embedding or
-  re-hosting a publisher's clips is a rights problem no amount of attribution fixes. The
-  legitimate routes are official club/league embeds where their terms permit it, or a
+- **A paid football-data.org tier would transform the reports.** This is the single
+  highest-value improvement. The free tier returns no scorers, bookings or referees, so
+  reports can't name who scored and are necessarily brief. With goal events, the same
+  template engine could write genuinely good reports — still with no LLM cost.
+- **A review queue.** Nothing is read before it reaches readers. Reports are low-risk
+  (they only restate scores the feed gave us) but the cheapest safeguard is a
+  `status: draft | published` field plus a Drafts tab. If you add it, public queries must
+  filter `status: "published"` — forgetting that publishes every unreviewed draft.
+- **Read the first week's output.** The `auto` badge in the CMS article list makes them
+  easy to find. `NEWS_AUTOMATION=off` stops everything instantly.
+- **Report variety will show with volume.** Phrasing is picked by a hash of the fixture,
+  so a given match always reads the same but different matches vary. Across a full
+  season the same few sentence shapes will recur; more alternatives in
+  `src/lib/reports/match-report.ts` is a cheap fix when it starts to show.
+- **League-table context.** We already store standings. "The win moves them up to
+  fourth" would add real value to reports, and is pure JS. Left out for now because
+  standings and match data can disagree mid-round, and a wrong position is worse than no
+  position.
+- **Highlights are still manual, deliberately.** Highlight video is licensed content;
+  embedding or re-hosting a publisher's clips is a rights problem no attribution fixes.
+  The legitimate routes are official club/league embeds where their terms allow it, or a
   licensing deal.
-- **Cost is unmetered.** Drafting is a real per-article running cost, unlike everything
-  else in this project. At the 4-per-run cap and a two-hourly schedule the ceiling is
-  ~48 articles/day. Consider tracking spend if the cap is ever raised.
+- **Clustering is only used for the headline list now.** It matches shared proper nouns
+  in headlines with a 12-hour window and a minimum-3-names rule (the comments in
+  `src/lib/feeds/cluster.ts` explain each guard). Lower stakes than when it fed drafting,
+  since a mis-grouped headline is just a duplicate link.
 
 ---
 
@@ -252,9 +261,7 @@ Not yet deployed. Before going live:
       gambling-adjacent sites attract more scrutiny than most
 - [ ] Confirm the 18+ notice and responsible-gambling links meet the requirements
       of any affiliate programme you join
-- [ ] Decide whether news automation should be on at launch. It defaults to off
+- [ ] Decide whether content automation should be on at launch. It defaults to off
       (`NEWS_AUTOMATION`), and since nothing is reviewed before publication it is
-      worth running `npm run news:dry-run -- --draft` a few times and reading the
-      output before switching it on
-- [ ] Set `ANTHROPIC_API_KEY` in Vercel if automation is being used, and rotate it
-      if it has been shared anywhere during development
+      worth running `npm run news:dry-run -- --samples` and reading the generated
+      prose before switching it on

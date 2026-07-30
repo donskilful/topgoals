@@ -40,7 +40,9 @@ export async function syncMatches(): Promise<SyncResult> {
   if (feed.length === 0) return result;
 
   const existing = await Match.find({ externalId: { $in: feed.map((m) => m.externalId) } })
-    .select("externalId manualOverride homeScore awayScore status meta kickoffAt")
+    .select(
+      "externalId manualOverride homeScore awayScore status meta kickoffAt halfTimeHome halfTimeAway",
+    )
     .lean();
 
   const byExternalId = new Map(existing.map((doc) => [doc.externalId, doc]));
@@ -66,7 +68,11 @@ export async function syncMatches(): Promise<SyncResult> {
       current.awayScore !== match.awayScore ||
       current.status !== match.status ||
       current.meta !== match.meta ||
-      current.kickoffAt?.getTime() !== match.kickoffAt.getTime();
+      current.kickoffAt?.getTime() !== match.kickoffAt.getTime() ||
+      // Arrives at the interval, well after the full-time score is already set, and the
+      // report templates depend on it — so it has to count as a change in its own right.
+      current.halfTimeHome !== match.halfTimeHome ||
+      current.halfTimeAway !== match.halfTimeAway;
 
     if (!changed) {
       result.unchanged += 1;

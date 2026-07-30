@@ -69,6 +69,7 @@ type ProviderMatch = {
   status: ProviderStatus;
   minute?: number | null;
   competition: { name: string; code: string };
+  matchday?: number | null;
   homeTeam: { name: string | null; shortName?: string | null };
   awayTeam: { name: string | null; shortName?: string | null };
   score: {
@@ -194,6 +195,18 @@ export type FeedMatch = {
   status: MatchStatus;
   meta: string;
   kickoffAt: Date;
+  /**
+   * Half-time score, as numbers, when the provider has one.
+   *
+   * The free tier gives no scorers, bookings or referees, so half-time versus full-time
+   * is the only thing in the payload that says anything about *how* a match went — a
+   * comeback, a second-half collapse, a game settled before the break. The report
+   * templates lean on it heavily; without it they could only restate the scoreline.
+   */
+  halfTimeHome: number | null;
+  halfTimeAway: number | null;
+  /** League matchday, for context in generated reports. Null in knockout rounds. */
+  matchday: number | null;
 };
 
 /** Collapses the provider's nine statuses onto the three the site displays. */
@@ -278,6 +291,10 @@ function toFeedMatch(match: ProviderMatch): FeedMatch | null {
     status: toSiteStatus(match.status),
     meta: toMeta(match, kickoffAt),
     kickoffAt,
+    // Only meaningful once the match has actually kicked off.
+    halfTimeHome: finishedOrLive ? (match.score?.halfTime?.home ?? null) : null,
+    halfTimeAway: finishedOrLive ? (match.score?.halfTime?.away ?? null) : null,
+    matchday: typeof match.matchday === "number" ? match.matchday : null,
   };
 }
 

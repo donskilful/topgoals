@@ -1,21 +1,44 @@
 import { XMLParser } from "fast-xml-parser";
 
 /**
- * Reads public RSS feeds to learn *what happened* — never to republish how a
- * publisher said it.
+ * Reads public RSS feeds for headlines to link out to.
  *
- * Only the facts a feed states in its own summary (who, what, which club, which
- * competition, when) travel any further than this file: `src/lib/ai/draft-article.ts`
- * turns those facts into original prose, and the source's own sentences are dropped.
- * Facts about the world aren't copyrightable; the words used to report them are. That
- * distinction is the whole reason this pipeline is built the way it is, so please keep
- * summaries out of anything user-facing.
+ * Nothing a publisher wrote is republished or rewritten. Only the headline, publisher,
+ * link and timestamp are kept (see `src/lib/sync/headlines.ts`), and readers click
+ * through to the source — because the only way to turn prose into different prose
+ * without a language model is to rearrange the author's words, which is a derivative of
+ * their writing however far it drifts.
  *
- * Every article we publish links back to the sources it was reported from — see
- * `sources` on the Article model.
+ * `summary` is parsed here but deliberately **not** stored or displayed anywhere. It is
+ * used purely as a filter signal: an item with too little text behind the headline is a
+ * live blog or a stub rather than a story. Keep it that way.
+ *
+ * TopGoals' own written content is the generated match reports in `src/lib/reports/`,
+ * built from match data we licence rather than from anyone's writing.
  */
 
 /** The publishers we monitor. Both offer public RSS with no auth or key. */
+/**
+ * Every story must sit under a football section on the publisher's own site.
+ *
+ * TopGoals is a football site, and this is the guard that keeps it one. Picking the
+ * right feed is not enough on its own: feed 12040 looked like Sky's football news feed
+ * and was actually its all-sport feed, which put cricket, tennis and darts stories into
+ * the pipeline. Both publishers file football under a /football/ path, so checking the
+ * article's own URL is a check on what the story *is* rather than on which feed
+ * happened to carry it — and it keeps holding if a feed's contents change or someone
+ * adds a new source later.
+ */
+const FOOTBALL_PATH = "/football/";
+
+function isFootballStory(link: string): boolean {
+  try {
+    return new URL(link).pathname.toLowerCase().includes(FOOTBALL_PATH);
+  } catch {
+    return false;
+  }
+}
+
 export const NEWS_FEEDS = [
   {
     name: "Sky Sports",
@@ -290,6 +313,9 @@ function parseItem(raw: RawItem, source: FeedSource): FeedItem | null {
   // A headline and a link back to the source are both non-negotiable: without the
   // headline there's no story, and without the link we can't attribute it.
   if (!title || !link) return null;
+
+  // Football only — see FOOTBALL_PATH.
+  if (!isFootballStory(link)) return null;
 
   const categories = Array.isArray(raw.category)
     ? raw.category.map((entry) => toPlainText(text(entry))).filter(Boolean)

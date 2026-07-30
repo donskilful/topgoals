@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getArticlesByCategory } from "@/lib/data/articles";
 import { ArticleGrid } from "@/components/article-grid";
+import { AroundTheWeb } from "@/components/around-the-web";
 import { EmptyNotice, PageIntro, PublicPage } from "@/components/public-page";
 
 export const revalidate = 60;
@@ -25,6 +26,12 @@ export default async function NewsPage() {
       ) : (
         <ArticleGrid articles={articles} />
       )}
+
+      {/*
+        Other publishers' headlines, linking out. Kept below our own coverage and
+        visibly labelled, so it reads as a signpost rather than as TopGoals reporting.
+      */}
+      <AroundTheWeb category="News" className="mt-12" />
     </PublicPage>
   );
 }

@@ -12,7 +12,6 @@
     "news:dry-run": "tsx scripts/news-dry-run.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
     "fast-xml-parser": "^5.10.1",
