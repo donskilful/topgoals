@@ -19,7 +19,6 @@ import { User } from "../src/lib/models/user";
 import { Article } from "../src/lib/models/article";
 import { Tip } from "../src/lib/models/tip";
 import { Highlight } from "../src/lib/models/highlight";
-import { Match } from "../src/lib/models/match";
 import { StandingRow } from "../src/lib/models/standing-row";
 import { Message } from "../src/lib/models/message";
 import { DEFAULT_COMPETITION } from "../src/lib/constants";
@@ -247,58 +246,14 @@ const HIGHLIGHTS = [
   { title: "Top 5 goals of the week", durationSeconds: 182, publishedAt: hoursAgo(20) },
 ];
 
-const MATCHES = [
-  {
-    competition: "Premier League",
-    home: "Arsenal",
-    away: "Chelsea",
-    homeScore: "2",
-    awayScore: "1",
-    status: "live" as const,
-    meta: "76'",
-    kickoffAt: hoursAgo(1.5),
-  },
-  {
-    competition: "La Liga",
-    home: "Real Madrid",
-    away: "Barcelona",
-    homeScore: "0",
-    awayScore: "0",
-    status: "live" as const,
-    meta: "34'",
-    kickoffAt: hoursAgo(0.75),
-  },
-  {
-    competition: "Premier League",
-    home: "Man City",
-    away: "Everton",
-    homeScore: "3",
-    awayScore: "0",
-    status: "finished" as const,
-    meta: "FT",
-    kickoffAt: hoursAgo(4),
-  },
-  {
-    competition: "Bundesliga",
-    home: "Bayern",
-    away: "Dortmund",
-    homeScore: "–",
-    awayScore: "–",
-    status: "upcoming" as const,
-    meta: "Today 20:00",
-    kickoffAt: hoursFromNow(4),
-  },
-  {
-    competition: "Ligue 1",
-    home: "PSG",
-    away: "Marseille",
-    homeScore: "–",
-    awayScore: "–",
-    status: "upcoming" as const,
-    meta: "Today 21:00",
-    kickoffAt: hoursFromNow(5),
-  },
-];
+/**
+ * Matches are deliberately NOT seeded.
+ *
+ * Live scores come from football-data.org and are kept current by the sync (see the
+ * README). Seeding fake fixtures would leave rows the sync never touches — they have
+ * no provider id — so a placeholder like "Arsenal 2-1 Chelsea 76'" would sit on the
+ * homepage claiming to be live forever. Run the sync, or add real fixtures in the CMS.
+ */
 
 // goalsFor/goalsAgainst chosen to produce the goal differences the table displays.
 const STANDINGS = [
@@ -316,7 +271,6 @@ async function seedContent(authorId: mongoose.Types.ObjectId) {
     { model: Article as unknown as mongoose.Model<never>, name: "articles" },
     { model: Tip as unknown as mongoose.Model<never>, name: "tips" },
     { model: Highlight as unknown as mongoose.Model<never>, name: "highlights" },
-    { model: Match as unknown as mongoose.Model<never>, name: "matches" },
     { model: StandingRow as unknown as mongoose.Model<never>, name: "standings" },
   ];
 
@@ -347,9 +301,6 @@ async function seedContent(authorId: mongoose.Types.ObjectId) {
   await Highlight.insertMany(HIGHLIGHTS);
   console.log(`✓ Seeded ${HIGHLIGHTS.length} highlights`);
 
-  await Match.insertMany(MATCHES);
-  console.log(`✓ Seeded ${MATCHES.length} ticker matches`);
-
   await StandingRow.insertMany(
     STANDINGS.map((row) => ({ ...row, competition: DEFAULT_COMPETITION })),
   );
@@ -366,7 +317,6 @@ async function main() {
     Article.syncIndexes(),
     Tip.syncIndexes(),
     Highlight.syncIndexes(),
-    Match.syncIndexes(),
     StandingRow.syncIndexes(),
     User.syncIndexes(),
     Message.syncIndexes(),
@@ -375,6 +325,8 @@ async function main() {
   const adminId = await seedAdmin();
   await seedContent(adminId as mongoose.Types.ObjectId);
 
+  console.log("\nLive scores are not seeded — they come from football-data.org.");
+  console.log("Set FOOTBALL_DATA_API_KEY, then use \"Sync now\" in the CMS or wait for the cron.");
   console.log("\nDone. Log in at /admin/login");
 }
 

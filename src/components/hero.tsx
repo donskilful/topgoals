@@ -34,8 +34,8 @@ export async function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-line bg-[radial-gradient(1100px_520px_at_18%_-20%,rgba(245,185,66,0.10),transparent_55%),radial-gradient(900px_460px_at_100%_0%,rgba(22,163,94,0.14),transparent_55%),var(--ink)] py-7 md:py-14">
       <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-10 px-5 2xl:max-w-[1320px] lg:grid-cols-[1fr_300px] lg:items-center">
-        <div className="relative">
-          <HeroGhost className="pointer-events-none absolute left-[10%] top-1/2 h-[640px] w-[640px] -translate-x-[38%] -translate-y-1/2 opacity-55 max-[640px]:-left-28 max-[640px]:-top-16 max-[640px]:h-[260px] max-[640px]:w-[260px] max-[640px]:translate-x-0 max-[640px]:translate-y-0 max-[640px]:opacity-15" />
+        <div className="relative max-[640px]:flex max-[640px]:flex-col max-[640px]:items-center max-[640px]:text-center">
+          <HeroGhost className="pointer-events-none absolute left-[10%] top-1/2 h-[640px] w-[640px] -translate-x-[38%] -translate-y-1/2 opacity-55 max-[640px]:left-1/2 max-[640px]:-top-10 max-[640px]:h-[280px] max-[640px]:w-[280px] max-[640px]:-translate-x-1/2 max-[640px]:translate-y-0 max-[640px]:opacity-15" />
 
           <div className="relative z-10 max-w-[480px]">
             <div className="mb-4 flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[1.5px] text-whistle">
@@ -45,10 +45,10 @@ export async function Hero() {
             <h1 className="mb-[18px] font-display text-[clamp(2.3rem,5.6vw,4rem)] uppercase leading-[0.97] tracking-wide">
               {renderHeadline(hero.headline, hero.headlineAccent)}
             </h1>
-            <p className="mb-6 max-w-[38ch] text-[15px] text-floodlight-dim">
+            <p className="mb-6 max-w-[38ch] text-[15px] text-floodlight-dim max-[640px]:mx-auto">
               {hero.description}
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 max-[640px]:justify-center">
               <Link
                 href={hero.primaryCta.href}
                 className="rounded-lg bg-torch px-[18px] py-2.5 text-[13px] font-extrabold text-ink shadow-[0_4px_14px_-4px_rgba(245,185,66,0.5)] transition-all hover:-translate-y-px hover:bg-[#ffc766]"
