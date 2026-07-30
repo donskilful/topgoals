@@ -1,4 +1,9 @@
-import { NO_SCORE, SITE_TIMEZONE, type MatchStatus } from "@/lib/constants";
+import {
+  competitionDisplayName,
+  NO_SCORE,
+  SITE_TIMEZONE,
+  type MatchStatus,
+} from "@/lib/constants";
 
 /**
  * Client for football-data.org (v4).
@@ -283,7 +288,8 @@ function toFeedMatch(match: ProviderMatch): FeedMatch | null {
 
   return {
     externalId: String(match.id),
-    competition: match.competition?.name ?? "Football",
+    // Normalised here so one league has one name across scores, reports and tables.
+    competition: competitionDisplayName(match.competition?.name ?? "Football"),
     home: match.homeTeam.shortName || match.homeTeam.name,
     away: match.awayTeam.shortName || match.awayTeam.name,
     homeScore: finishedOrLive ? score(match.score?.fullTime?.home) : NO_SCORE,

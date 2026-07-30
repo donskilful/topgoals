@@ -38,7 +38,14 @@ export async function getFeaturedArticle(): Promise<HeroContent | null> {
   return publicRead("getFeaturedArticle", null, async () => {
     await dbConnect();
 
-    const article = await Article.findOne({ featured: true }).lean();
+    // Falling back to the newest article means the homepage's opening moment never
+    // disappears just because nobody has picked a hero yet — which is exactly the state a
+    // site is in right after its placeholder content is cleared out. An explicit choice in
+    // the CMS always wins; this only fills the gap.
+    const article =
+      (await Article.findOne({ featured: true }).lean()) ??
+      (await Article.findOne().sort({ publishedAt: -1 }).lean());
+
     if (!article) return null;
 
     return {

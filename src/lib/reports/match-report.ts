@@ -106,8 +106,18 @@ function describeShape(facts: MatchFacts): Shape {
   return "emphatic";
 }
 
-/** Verb for a win, varied by fixture. */
-function winVerb(value: number): string {
+/**
+ * Verb for a win, varied by fixture but scaled to the margin.
+ *
+ * Kept in step with the headline: a 4-0 titled "sweep aside" opened with "got the better
+ * of", which understates a rout and reads as though the two sentences describe different
+ * matches.
+ */
+function winVerb(value: number, shape: Shape): string {
+  if (shape === "emphatic") return pick(["beat", "overpowered", "outclassed"], value, 3);
+  if (shape === "narrow" || shape === "held-on") {
+    return pick(["edged", "beat", "saw off"], value, 3);
+  }
   return pick(["beat", "saw off", "got the better of", "overcame"], value, 3);
 }
 
@@ -134,7 +144,7 @@ function buildTitle(facts: MatchFacts, shape: Shape, value: number): string {
     case "emphatic":
       return `${winner} ${pick(["run riot against", "thrash", "sweep aside"], value, 7)} ${loser} ${scoreline}`;
     default:
-      return `${winner} ${winVerb(value)} ${loser} ${scoreline}`;
+      return `${winner} ${winVerb(value, shape)} ${loser} ${scoreline}`;
   }
 }
 
@@ -156,7 +166,7 @@ function openingSentence(facts: MatchFacts, shape: Shape, value: number): string
 
   const venue = homeWon ? "at home" : "away from home";
 
-  return `${winner} ${winVerb(value)} ${loser} ${high}-${low} ${venue} in the ${competition} on ${day}.`;
+  return `${winner} ${winVerb(value, shape)} ${loser} ${high}-${low} ${venue} in the ${competition} on ${day}.`;
 }
 
 /**
