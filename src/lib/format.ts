@@ -1,14 +1,51 @@
+import { SITE_TIMEZONE } from "@/lib/constants";
+
+/**
+ * Every formatter here is pinned to the site's timezone (GMT+1) rather than the
+ * server's, so a kick-off time reads the same whether the page was rendered in
+ * Lagos, London or a US datacentre.
+ */
+
+/** "29 Jul 2026, 20:00" — full timestamp, used in the CMS. */
+export const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: SITE_TIMEZONE,
+});
+
+/** "29 July 2026 at 20:00" — article bylines. */
+export const longDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "long",
+  timeStyle: "short",
+  timeZone: SITE_TIMEZONE,
+});
+
+/** "Wed 29 Jul" — compact date for tip listings. */
+export const dayFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: SITE_TIMEZONE,
+});
+
+/** "20:00" — kick-off times on cards. */
+export const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: SITE_TIMEZONE,
+});
+
 /**
  * Renders a timestamp as "2 hours ago".
  *
  * Computed at render time rather than stored, so it can never go stale — the mock
  * data used to hard-code strings like "2 hours ago", which stopped being true the
- * moment it wasn't "now".
+ * moment it wasn't "now". Timezone-independent: it's a duration, not a clock time.
  */
 export function relativeTime(date: Date, now: Date = new Date()): string {
   const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
 
-  if (seconds < 0) return "just now";
   if (seconds < 60) return "just now";
 
   const minutes = Math.floor(seconds / 60);
@@ -38,11 +75,7 @@ export function formatClipLength(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-/** Kick-off time as shown on a tip card, e.g. "17:30". */
+/** Kick-off time as shown on a tip or match card, e.g. "20:00" in GMT+1. */
 export function formatKickoffTime(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
+  return timeFormatter.format(date);
 }

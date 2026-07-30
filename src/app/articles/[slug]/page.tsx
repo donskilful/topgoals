@@ -9,6 +9,7 @@ import {
 import { ArticleGrid } from "@/components/article-grid";
 import { PublicPage } from "@/components/public-page";
 import { Tag } from "@/components/tag";
+import { longDateFormatter } from "@/lib/format";
 
 export const revalidate = 60;
 
@@ -55,10 +56,6 @@ export async function generateMetadata({
   };
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "long",
-  timeStyle: "short",
-});
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -88,7 +85,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
         <p className="mb-7 font-mono text-[11px] uppercase tracking-wide text-floodlight-faint">
           <time dateTime={article.publishedAt}>
-            {dateFormatter.format(new Date(article.publishedAt))}
+            {longDateFormatter.format(new Date(article.publishedAt))}
           </time>{" "}
           · {article.time}
         </p>

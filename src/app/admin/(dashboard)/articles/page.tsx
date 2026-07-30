@@ -3,12 +3,12 @@ import { requireRole } from "@/lib/auth-helpers";
 import { dbConnect } from "@/lib/db";
 import { Article } from "@/lib/models/article";
 import { deleteArticle } from "@/lib/actions/articles";
+import { dateTimeFormatter } from "@/lib/format";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "@/lib/constants";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { DeleteRowForm } from "@/components/admin/delete-row-form";
 import { SavedBanner } from "@/components/admin/saved-banner";
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 const COPY: Record<ArticleCategory, { title: string; description: string; newLabel: string }> = {
   News: {
@@ -123,7 +123,7 @@ export default async function ArticlesPage({
                       </span>
                     </td>
                     <td className={`px-4 py-3 font-mono text-[11px] text-floodlight-dim ${border}`}>
-                      {dateFormatter.format(article.publishedAt)}
+                      {dateTimeFormatter.format(article.publishedAt)}
                     </td>
                     <td className={`px-4 py-3 ${border}`}>
                       <div className="flex items-center justify-end gap-3">

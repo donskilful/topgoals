@@ -64,6 +64,25 @@ export const AUDIT_ENTITY_TYPES = [
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
+/**
+ * The site's editorial timezone: GMT+1 year-round.
+ *
+ * Africa/Lagos rather than a raw "+01:00" because it's a real IANA zone Intl
+ * accepts, and it observes no daylight saving — so kick-off times never shift by an
+ * hour twice a year the way a Europe/* zone would.
+ *
+ * Everything user-facing is rendered in this zone, and datetime-local inputs in the
+ * CMS are both written and parsed in it, so what an editor types is what readers see
+ * regardless of where the server runs.
+ */
+export const SITE_TIMEZONE = "Africa/Lagos";
+
+/** Fixed UTC offset matching SITE_TIMEZONE, for parsing datetime-local strings. */
+export const SITE_UTC_OFFSET = "+01:00";
+
+/** Shown next to times so readers know which clock they're looking at. */
+export const SITE_TIMEZONE_LABEL = "GMT+1";
+
 /** Until multiple leagues are supported, every standings row belongs to this table. */
 export const DEFAULT_COMPETITION = "Premier League";
 

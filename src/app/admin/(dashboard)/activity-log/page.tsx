@@ -2,6 +2,7 @@ import { requireAdminOrRedirect } from "@/lib/auth-helpers";
 import { dbConnect } from "@/lib/db";
 import { AuditLog } from "@/lib/models/audit-log";
 import type { AuditAction } from "@/lib/constants";
+import { dateTimeFormatter } from "@/lib/format";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 
 const PAGE_SIZE = 50;
@@ -12,10 +13,6 @@ const ACTION_BADGES: Record<AuditAction, string> = {
   delete: "bg-[rgba(255,71,87,0.14)] text-whistle",
 };
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 export default async function ActivityLogPage({
   searchParams,
@@ -73,7 +70,7 @@ export default async function ActivityLogPage({
                 <p className="mt-1 font-mono text-[11px] text-floodlight-faint">
                   {entry.actorName} ({entry.actorEmail}) ·{" "}
                   <time dateTime={entry.createdAt.toISOString()}>
-                    {dateFormatter.format(entry.createdAt)}
+                    {dateTimeFormatter.format(entry.createdAt)}
                   </time>
                 </p>
               </li>

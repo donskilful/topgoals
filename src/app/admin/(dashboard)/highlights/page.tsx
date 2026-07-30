@@ -4,11 +4,11 @@ import { dbConnect } from "@/lib/db";
 import { Highlight } from "@/lib/models/highlight";
 import { deleteHighlight } from "@/lib/actions/highlights";
 import { formatDuration } from "@/lib/schemas/highlight";
+import { dateTimeFormatter } from "@/lib/format";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { DeleteRowForm } from "@/components/admin/delete-row-form";
 import { SavedBanner } from "@/components/admin/saved-banner";
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 export default async function HighlightsPage({
   searchParams,
@@ -68,7 +68,7 @@ export default async function HighlightsPage({
                       )}
                     </td>
                     <td className={`px-4 py-3 font-mono text-[11px] text-floodlight-dim ${border}`}>
-                      {dateFormatter.format(clip.publishedAt)}
+                      {dateTimeFormatter.format(clip.publishedAt)}
                     </td>
                     <td className={`px-4 py-3 ${border}`}>
                       <div className="flex items-center justify-end gap-3">

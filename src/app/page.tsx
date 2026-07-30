@@ -7,7 +7,7 @@ import { GoalsHighlights } from "@/components/goals-highlights";
 import { LatestNews } from "@/components/latest-news";
 import { StandingsWidget } from "@/components/sidebar/standings-widget";
 import { TrendingTips } from "@/components/sidebar/trending-tips";
-import { NewsletterCard } from "@/components/sidebar/newsletter-card";
+import { TrackRecordCard } from "@/components/sidebar/track-record-card";
 import { SiteFooter } from "@/components/site-footer";
 import { MobileTabbar } from "@/components/mobile-tabbar";
 
@@ -40,7 +40,7 @@ export default function Home() {
           <aside className="flex flex-col gap-5 lg:sticky lg:top-[84px]">
             <StandingsWidget />
             <TrendingTips />
-            <NewsletterCard />
+            <TrackRecordCard />
           </aside>
         </section>
       </main>

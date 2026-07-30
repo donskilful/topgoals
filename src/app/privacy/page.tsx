@@ -43,8 +43,8 @@ export default function PrivacyPage() {
         <Section title="The short version">
           <p>
             We collect as little as we can get away with. We don&apos;t sell your data, we
-            don&apos;t run advertising trackers, and there is no account to create unless you
-            choose to subscribe to our tips.
+            don&apos;t run advertising trackers, and there is nothing to sign up for — the tips
+            are simply on the site.
           </p>
         </Section>
 
@@ -54,11 +54,6 @@ export default function PrivacyPage() {
             provider processes your IP address and browser user-agent to serve pages and to
             protect against abuse. We keep aggregate, non-identifying counts of which pages are
             popular. We do not build a profile of you.
-          </p>
-          <p>
-            <strong className="text-floodlight">If you subscribe to daily tips:</strong> we store
-            the email address or messaging handle you give us, and the date you subscribed. That
-            is all we need in order to send you tips.
           </p>
           <p>
             <strong className="text-floodlight">If you use the contact form:</strong> we store the
@@ -86,9 +81,9 @@ export default function PrivacyPage() {
 
         <Section title="How your data is used">
           <p>
-            Only for the purpose you gave it. A subscription email is used to send you tips and
-            nothing else. We do not sell, rent or trade personal data, and we do not share it
-            with advertisers or data brokers.
+            Only for the purpose you gave it. A message sent through the contact form is used to
+            reply to you and nothing else — it is never added to a mailing list. We do not sell,
+            rent or trade personal data, and we do not share it with advertisers or data brokers.
           </p>
           <p>
             We rely on a small number of service providers to run the site — hosting,
@@ -99,7 +94,6 @@ export default function PrivacyPage() {
 
         <Section title="How long we keep it">
           <p>
-            Subscription details are kept until you unsubscribe, after which they are deleted.
             Contact form messages are kept while we deal with them and deleted once they&apos;re no
             longer needed — ask us and we&apos;ll delete yours sooner. Staff accounts are kept
             while the person has access. Entries in the content audit log are kept indefinitely,
@@ -109,9 +103,8 @@ export default function PrivacyPage() {
 
         <Section title="Your rights">
           <p>
-            You can ask us for a copy of the data we hold about you, ask us to correct it, or
-            ask us to delete it. You can withdraw consent for tip emails at any time using the
-            unsubscribe link, or by contacting us. We will respond within 30 days.
+            You can ask us for a copy of the data we hold about you, ask us to correct it, or ask
+            us to delete it. Just get in touch — we will respond within 30 days.
           </p>
           <p>
             If you are in the UK or EU you also have the right to complain to your data

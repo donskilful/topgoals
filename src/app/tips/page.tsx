@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getAllTips, getTipStats } from "@/lib/data/tips";
+import { dayFormatter } from "@/lib/format";
+import { SITE_TIMEZONE_LABEL } from "@/lib/constants";
 import { EmptyNotice, PageIntro, PublicPage } from "@/components/public-page";
 
 export const revalidate = 60;
@@ -24,11 +26,6 @@ const RESULT_LABELS = {
   void: "Void",
 } as const;
 
-const dayFormatter = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
 
 export default async function TipsPage() {
   const [tips, stats] = await Promise.all([getAllTips(60), getTipStats()]);
@@ -40,7 +37,7 @@ export default async function TipsPage() {
     <PublicPage>
       <PageIntro
         title="Betting Tips"
-        description="Every tip we post, with the odds we posted them at — and every result, win or lose. We publish the losses because a tipster who only shows winners isn't telling you anything useful."
+        description={`Every tip we post, with the odds we posted them at — and every result, win or lose. We publish the losses because a tipster who only shows winners isn't telling you anything useful. Kick-off times ${SITE_TIMEZONE_LABEL}.`}
       />
 
       {stats.hasData ? (

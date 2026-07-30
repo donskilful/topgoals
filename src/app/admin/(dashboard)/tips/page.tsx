@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth-helpers";
 import { dbConnect } from "@/lib/db";
 import { Tip } from "@/lib/models/tip";
 import { deleteTip } from "@/lib/actions/tips";
+import { dateTimeFormatter } from "@/lib/format";
 import type { TipResultStatus } from "@/lib/constants";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { DeleteRowForm } from "@/components/admin/delete-row-form";
@@ -15,7 +16,6 @@ const RESULT_BADGES: Record<TipResultStatus, string> = {
   void: "bg-charcoal-3 text-floodlight-faint",
 };
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 export default async function TipsPage({
   searchParams,
@@ -77,7 +77,7 @@ export default async function TipsPage({
                     <td className={`px-4 py-3 text-floodlight-dim ${border}`}>{tip.pick}</td>
                     <td className={`px-4 py-3 font-mono ${border}`}>{tip.odds}</td>
                     <td className={`px-4 py-3 font-mono text-[11px] text-floodlight-dim ${border}`}>
-                      {dateFormatter.format(tip.kickoffAt)}
+                      {dateTimeFormatter.format(tip.kickoffAt)}
                     </td>
                     <td className={`px-4 py-3 ${border}`}>
                       <span

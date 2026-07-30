@@ -1,11 +1,10 @@
 import { requireRole } from "@/lib/auth-helpers";
 import { dbConnect } from "@/lib/db";
 import { Message } from "@/lib/models/message";
-import { relativeTime } from "@/lib/format";
+import { dateTimeFormatter, relativeTime } from "@/lib/format";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { MessageActions } from "./message-actions";
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 const TOPIC_BADGES: Record<string, string> = {
   Correction: "bg-[rgba(255,71,87,0.14)] text-whistle",
@@ -84,7 +83,7 @@ export default async function MessagesPage() {
 
               <p className="mt-3 font-mono text-[10px] text-floodlight-faint">
                 <time dateTime={message.createdAt.toISOString()}>
-                  {dateFormatter.format(message.createdAt)}
+                  {dateTimeFormatter.format(message.createdAt)}
                 </time>{" "}
                 · {relativeTime(message.createdAt)}
               </p>

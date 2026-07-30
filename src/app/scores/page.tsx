@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTickerMatches } from "@/lib/data/matches";
 import { getStandings } from "@/lib/data/standings";
-import { DEFAULT_COMPETITION } from "@/lib/constants";
+import { DEFAULT_COMPETITION, SITE_TIMEZONE_LABEL } from "@/lib/constants";
 import { EmptyNotice, PageIntro, PublicPage } from "@/components/public-page";
 
 export const revalidate = 60;
@@ -25,7 +25,7 @@ export default async function ScoresPage() {
     <PublicPage>
       <PageIntro
         title="Live Scores"
-        description="Every match we're following today, ordered with anything in play first."
+        description={`Every match we're following today, ordered with anything in play first. All times ${SITE_TIMEZONE_LABEL}.`}
       />
 
       <div className="grid grid-cols-1 items-start gap-9 lg:grid-cols-[1fr_336px]">
