@@ -87,6 +87,26 @@ news, because:
 
 See the README's *Automated content* section for the full shape.
 
+### Open decision: there is no transfer-article generator
+
+Worth being explicit, because it's easy to miss: after the LLM was removed, **nothing
+produces Transfer-category articles**. Match reports are generated but are always `News`.
+So `/transfers` shows the "Around the Web" link list and no TopGoals articles at all.
+
+That isn't an oversight — it's the direct consequence of the JS-only decision. A transfer
+story only exists as another publisher's prose, and turning prose into prose without a
+language model means rearranging their words, which is a derivative work. The three ways
+forward:
+
+1. **Accept the link list.** Free, zero risk, but readers leave the site and the archive
+   never grows.
+2. **Reinstate LLM drafting for transfers and non-match news only.** Match reports stay
+   free JS, so this is a fraction of the original cost — roughly **$10–20/month** at
+   6–8 articles a day rather than the ~$88 estimated when the LLM wrote everything. The
+   code to do it is in the git history (`src/lib/ai/draft-article.ts`, removed in the
+   "Generate match reports in JavaScript" commit) and can be restored largely as-is.
+3. **Write them by hand in the CMS.** Best quality, real ongoing effort.
+
 ### Follow-ups worth doing
 
 - **A paid football-data.org tier would transform the reports.** This is the single

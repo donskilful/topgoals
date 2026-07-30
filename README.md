@@ -381,6 +381,34 @@ pick an item up without prior context.
 
 Every push gets an entry here — what shipped and why, newest first.
 
+### 2026-07-31 — Placeholder content removed, real content in
+
+The five seeded articles ("Mbappé completes move to Real Madrid", "Saka signs new
+long-term deal", and so on) were invented sample copy with no source behind them. They are
+deleted, with audit entries recording why, and the site now runs entirely on real data:
+21 headlines pulled from Sky Sports and Guardian Football, plus generated match reports
+from actual Brasileirão results.
+
+Fixes that came out of reading the first real generated output:
+
+- **Verb strength now matches the margin.** A 4-0 headlined "sweep aside" opened with "got
+  the better of" — the two sentences read like different matches.
+- **One league, one name.** The same competition was "Brasileirão" on the standings tab and
+  "Campeonato Brasileiro Série A" in reports and the ticker, where it truncated to
+  "CAMPEONATO B..." and told the reader nothing. Provider names are normalised on ingest.
+- **Half-time scores were missing from existing fixtures**, so the first report was two flat
+  sentences. Backfilled by the score sync; reports now carry the half-time narrative they
+  were designed around.
+- **The hero no longer goes blank.** It falls back to the newest article when nothing is
+  explicitly featured — which is exactly the state the site was in the moment placeholder
+  content was cleared.
+- Silenced a Mongoose 9 deprecation (`new: true` → `returnDocument: "after"`).
+
+**Known gap, and it's a real one:** nothing generates *transfer articles* any more. Removing
+the LLM removed the only mechanism that could legitimately write prose about a story that
+only exists as another publisher's prose. Transfers are therefore a link list ("Around the
+Web") until that's revisited — see `TODO.md` item 2.
+
 ### 2026-07-31 — League tables sync themselves
 
 The table was the last thing on the site still maintained by hand, and it sat on the

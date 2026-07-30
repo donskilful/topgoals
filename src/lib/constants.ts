@@ -101,6 +101,30 @@ export const SITE_UTC_OFFSET = "+01:00";
 /** Shown next to times so readers know which clock they're looking at. */
 export const SITE_TIMEZONE_LABEL = "GMT+1";
 
+/**
+ * Shorter display names for competitions whose official name is unwieldy.
+ *
+ * Applied where provider data enters the system, so one league has exactly one name
+ * everywhere. Without it the same competition appeared as "Brasileirão" on the standings
+ * tab and "Campeonato Brasileiro Série A" in match reports and the score ticker — where it
+ * truncated to "CAMPEONATO B..." and told the reader nothing.
+ */
+const COMPETITION_DISPLAY_NAMES: Record<string, string> = {
+  "Campeonato Brasileiro Série A": "Brasileirão",
+  "Primera Division": "La Liga",
+  "Primera División": "La Liga",
+  "UEFA Champions League": "Champions League",
+  "Copa Libertadores": "Copa Libertadores",
+  "Championship": "Championship",
+  "Primeira Liga": "Primeira Liga",
+  "FIFA World Cup": "World Cup",
+  "European Championship": "Euros",
+};
+
+export function competitionDisplayName(name: string): string {
+  return COMPETITION_DISPLAY_NAMES[name.trim()] ?? name.trim();
+}
+
 /** Until multiple leagues are supported, every standings row belongs to this table. */
 export const DEFAULT_COMPETITION = "Premier League";
 
