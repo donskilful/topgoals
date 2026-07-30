@@ -9,7 +9,14 @@ export function HeroFigure() {
   return (
     <div
       aria-hidden="true"
-      className="absolute -top-4 right-0 h-[360px] w-[280px] drop-shadow-[0_30px_40px_rgba(0,0,0,0.45)] max-[640px]:static max-[640px]:order-first max-[640px]:mb-2 max-[640px]:h-[270px] max-[640px]:w-[210px]"
+      /**
+       * On phones this sits *behind* the copy rather than above it. As a block it
+       * pushed the headline more than half a screen down — 320px of decoration
+       * before the first word, on the device most readers use. Scaled with
+       * `scale` rather than a smaller width/height so the parts, which are
+       * positioned at fixed offsets, shrink together instead of overflowing.
+       */
+      className="pointer-events-none absolute -top-4 right-0 h-[360px] w-[280px] drop-shadow-[0_30px_40px_rgba(0,0,0,0.45)] max-[640px]:-right-4 max-[640px]:-top-6 max-[640px]:origin-top-right max-[640px]:scale-[0.58] max-[640px]:opacity-35"
     >
       <div className="absolute right-[-40px] top-[10px] h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(245,185,66,0.30),transparent_65%)] blur-[6px]" />
 
