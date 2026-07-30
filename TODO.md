@@ -229,7 +229,32 @@ If that's more than is wanted right now, **delete the button** and reopen this l
 
 ---
 
-## 7. Smaller known gaps
+## 7. Empty states don't distinguish "none" from "unavailable"
+
+**Priority: low** · Effort: ~1 hour
+
+### The problem
+
+Public read helpers now degrade instead of throwing when Mongo is unreachable (see
+`src/lib/data/public-read.ts`), so a database outage renders the page with empty
+sections rather than a 500. That's the right trade — but the empty states say things
+like *"No tips posted yet today"*, which during an outage is inaccurate: there may well
+be tips, we just couldn't fetch them.
+
+Low priority because the alternative (an error page) is worse for the reader, and the
+server log records the real cause. But on a tips site, telling someone there are no tips
+when there are is worth fixing eventually.
+
+### Suggested approach
+
+Have `publicRead` return a discriminated result (`{ ok: true, data }` / `{ ok: false }`)
+rather than a bare fallback, and let sections render "Temporarily unavailable — try again
+shortly" on `ok: false` while keeping the existing copy for a genuine empty set. The
+wrapper already knows the difference; it just throws that information away.
+
+---
+
+## 8. Smaller known gaps
 
 | Gap | Where | Notes |
 | --- | --- | --- |
