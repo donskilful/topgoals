@@ -171,9 +171,22 @@ Remaining follow-ups if you want to go further:
   `/competitions/{code}/standings`, but that's one request per competition — ten
   requests against a 10/minute budget. Sync it on a slower schedule (hourly is plenty;
   tables don't change mid-match) rather than alongside scores.
-- **Only 10 competitions.** Nigerian NPFL and most non-European leagues aren't on the
-  free tier. They can still be added by hand, and the sync leaves them alone.
+- **Coverage is 13 competitions, not everything.** Confirmed by querying
+  `/competitions` with the live key. Notably **Europa League and Conference League
+  return 403** — they're paid-only. So the qualifiers a site like LiveScore shows
+  simply aren't available on this plan. Two ways to close that gap:
+  - **Upgrade football-data.org.** Cheapest path, same code — the competition codes
+    just start returning data. Add them to `TRACKED_COMPETITIONS`.
+  - **Add API-Football as a second provider.** Its free tier lists 1,200+ leagues
+    (including Europa League qualifying, the Nigerian NPFL and most African leagues)
+    but caps at ~100 requests/day, so it can only be polled every ~15 minutes. The
+    sensible shape is football-data.org for the majors at 5-minute freshness plus
+    API-Football for breadth on a slower schedule, both writing through
+    `syncMatches`. `externalId` would need a provider prefix to avoid collisions.
+- **Requests are capped at a 10-day span.** Anything wider 400s with "Specified
+  period must not exceed 10 days"; `fetchMatches` clamps and warns.
 - **No goal-scorer or lineup data** on the free tier.
+- **Standings still aren't synced** — see above.
 
 ## 5. Password reset for staff
 
