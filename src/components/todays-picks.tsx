@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTodaysTips } from "@/lib/data/tips";
+import { SITE_TIMEZONE_LABEL } from "@/lib/constants";
 
 function ConfidenceDots({ level }: { level: number }) {
   return (
@@ -28,7 +29,9 @@ export async function TodaysPicks() {
           <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
             Today&apos;s Picks
           </h3>
-          <div className="text-[13px] text-floodlight-dim">Posted daily by 09:00 GMT</div>
+          <div className="text-[13px] text-floodlight-dim">
+            Published ahead of kick-off, all times {SITE_TIMEZONE_LABEL}
+          </div>
         </div>
         <Link
           href="/tips"

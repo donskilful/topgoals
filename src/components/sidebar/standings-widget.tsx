@@ -1,15 +1,19 @@
 import Link from "next/link";
-import { getStandings } from "@/lib/data/standings";
+import { getPrimaryLeagueTable } from "@/lib/data/standings";
 
 export async function StandingsWidget() {
-  const rows = await getStandings();
+  const table = await getPrimaryLeagueTable();
 
-  if (rows.length === 0) return null;
+  if (!table) return null;
+
+  const { competition, rows } = table;
 
   return (
     <div className="rounded-xl border border-line bg-charcoal p-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <h4 className="font-display text-[15px] font-normal uppercase tracking-wide">Standings</h4>
+        <h4 className="font-display text-[15px] font-normal uppercase tracking-wide">
+          {competition}
+        </h4>
         <Link href="/scores" className="text-xs font-bold text-pitch-bright hover:underline">
           Full table →
         </Link>

@@ -30,7 +30,7 @@ audience on mobile, often on weak connections.
 - **Database:** MongoDB Atlas + Mongoose
 - **Auth:** Auth.js v5 (credentials + JWT sessions)
 - **Media:** Cloudinary, signed uploads straight from the browser
-- **Live scores:** football-data.org, polled by Vercel Cron
+- **Live scores & tables:** football-data.org, polled by Vercel Cron
 - **Automated content:** JS-generated match reports; attributed headline links from RSS
 - **Planned:** Redis caching, PWA layer
 
@@ -118,6 +118,52 @@ Three rules stop the feed and the CMS fighting each other:
    `auto`, `edited` or `manual`.
 3. **The sync never deletes.** A provider outage can't empty the ticker, and
    competitions outside the free tier can still be added by hand.
+
+## League tables
+
+Tables sync from football-data.org every 15 minutes (`/api/cron/standings`), covering the
+**Premier League, La Liga, Serie A, Bundesliga, Ligue 1 and Brasileirão**.
+
+`/scores` shows every table behind a switcher; the homepage widget shows one. Both are
+labelled with the competition, and the switcher's tables all ship inside the page's static
+HTML so changing league costs no request.
+
+### A table is only published once its season has started
+
+This guard exists because the provider is inconsistent before kick-off, in two different
+ways — verified against all five European leagues on 30 July 2026, three weeks before the
+2026/27 season:
+
+| League | What the provider returned |
+| --- | --- |
+| Premier League, La Liga, Bundesliga | **Last season's final table** under the new season's metadata — 760 games played across 20 teams, i.e. 38 each |
+| Serie A, Ligue 1 | A correctly zeroed new-season table with **all 20 teams at position 1** |
+
+Publishing the first would have shown Arsenal on 85 points before a ball was kicked;
+publishing the second renders as nonsense and, since qualification is derived from
+position, marks every team a European qualifier. On a site with betting tips beside the
+table, a table that looks current and isn't is a factual error a reader could act on — so
+`isPublishableTable()` requires the season to have started, at least one game to have been
+played, and positions to be distinct. Anything else is skipped with a logged reason, and
+whatever is already stored is left alone.
+
+Practical consequence: between May and mid-August only **Brasileirão** has a live table
+(it runs February to December). That's why it's in the list — without it the tables sit
+empty through the European summer. The European leagues start filling in from 7 August.
+
+### Rows are matched on team, never position
+
+Positions reshuffle on almost every sync, so the unique index is `{competition, team}`. It
+used to be `{competition, pos}`, which looked equivalent and wasn't — two teams swapping
+places produced a duplicate-key error, and re-ordering a table by hand in the CMS hit the
+same wall. Teams that leave a table (promotion, relegation, a new season's line-up) are
+removed after the upsert, so a table can shrink as well as grow.
+
+### Not available on this provider
+
+**MLS and the Saudi Pro League are not on football-data.org at any tier** — `/competitions`
+returns exactly 13 for this key and both return HTTP 403. They need a second provider or
+manual CMS entry; see `TODO.md`.
 
 ## Automated content
 
@@ -264,6 +310,7 @@ src/
     reports/match-report.ts             # JS templates -> original match-report prose
     reports/results-roundup.ts           # JS templates -> daily results round-up
     sync/matches.ts                       # score feed -> database upsert rules
+    sync/standings.ts                      # league tables, with the season guard
     sync/reports.ts                        # finished matches -> published reports
     sync/headlines.ts                       # RSS -> attributed link list
     models/                         # Mongoose schemas
@@ -333,6 +380,41 @@ pick an item up without prior context.
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-31 — League tables sync themselves
+
+The table was the last thing on the site still maintained by hand, and it sat on the
+homepage beside automatically-updating live scores looking equally live. It now syncs from
+football-data.org every 15 minutes across the Premier League, La Liga, Serie A, Bundesliga,
+Ligue 1 and Brasileirão, with a switcher on `/scores`.
+
+- **Tables are refused until their season starts**, because the provider is inconsistent
+  before kick-off in two different ways. Checked against all five European leagues: three
+  returned *last season's final table* under the new season's metadata (760 games played
+  across 20 teams), and two returned zeroed tables with all 20 teams at position 1. The
+  first would have published Arsenal on 85 points before a ball was kicked; the second
+  marks every team a European qualifier, since qualification comes from position.
+- **Brasileirão is in the list for a practical reason** — it runs February to December, so
+  it's the only major league with a live table through the European summer. Without it the
+  tables would be empty until August.
+- **Rows are matched on team, not position.** The unique index moved from
+  `{competition, pos}` to `{competition, team}`: positions reshuffle on nearly every sync,
+  so the old key errored the moment two teams swapped places, and `syncIndexes()` drops the
+  stale index on existing databases.
+- **`getStandings()` was querying every row and sorting by position** — fine with one
+  league, and with five it would have interleaved five different teams all at position 1
+  into a single nonsense table.
+- **The homepage widget and the switcher now lead with a table the feed is updating**, so
+  neither presents leftover or hand-seeded rows as current standings.
+- **A rate limit counts as a skip, not a failure.** Six competitions is six requests
+  against a 10-per-minute budget shared with the score sync; a throttle is expected and
+  transient, and reporting it as a failure made the cron cry wolf.
+- **Three pieces of copy were lying.** "Scores are updated manually by our team" predated
+  the score sync; "Posted daily by 09:00 GMT" contradicted the site's GMT+1 pinning
+  everywhere else; "Clipped within minutes of full time" claimed an automation that
+  doesn't exist, since highlights are still manual.
+- **MLS and the Saudi Pro League were asked for and aren't available** — not on
+  football-data.org at any tier (both 403). Logged in `TODO.md` with the options.
 
 ### 2026-07-30 — The site survives a database outage
 

@@ -336,3 +336,159 @@ export async function fetchMatches({
 
   return (data.matches ?? []).map(toFeedMatch).filter((m): m is FeedMatch => m !== null);
 }
+
+/**
+ * Competitions we pull league tables for.
+ *
+ * A subset of TRACKED_COMPETITIONS: only round-robin leagues, because a knockout
+ * competition's "standings" are group tables that don't fit a single league table (the
+ * Champions League returns one row set per group).
+ *
+ * `qualifyingPlaces` drives the green highlight in the table and is a **display
+ * convention, not a claim about a specific season's allocation** — UEFA's coefficient
+ * places move between four and five for the big leagues, and the provider doesn't tell
+ * us which applies. Getting it wrong is cosmetic; it never affects a score or a tip.
+ *
+ * ## Not available on this provider
+ *
+ * MLS and the Saudi Pro League were both asked for and neither is on football-data.org
+ * at any tier — /competitions returns exactly 13 competitions for this key and both
+ * return HTTP 403. They need a second provider or manual CMS entry; see TODO.md.
+ */
+export const STANDINGS_COMPETITIONS = [
+  { code: "PL", name: "Premier League", qualifyingPlaces: 4 },
+  { code: "PD", name: "La Liga", qualifyingPlaces: 4 },
+  { code: "SA", name: "Serie A", qualifyingPlaces: 4 },
+  { code: "BL1", name: "Bundesliga", qualifyingPlaces: 4 },
+  { code: "FL1", name: "Ligue 1", qualifyingPlaces: 3 },
+  // Runs February to December, so it's the one major league with a live table through
+  // the European summer — without it the tables sit empty from May to mid-August.
+  { code: "BSA", name: "Brasileirão", qualifyingPlaces: 4 },
+] as const;
+
+export type StandingsCompetition = (typeof STANDINGS_COMPETITIONS)[number];
+
+/** Our own shape for one row of a league table. */
+export type FeedStandingRow = {
+  pos: number;
+  team: string;
+  played: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+  qualifying: boolean;
+  form: string[];
+};
+
+type ProviderStandingRow = {
+  position: number;
+  team: { name?: string | null; shortName?: string | null };
+  playedGames: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+  form?: string | null;
+};
+
+type ProviderStandings = {
+  season?: { startDate?: string; endDate?: string; currentMatchday?: number | null };
+  standings?: { type?: string; table?: ProviderStandingRow[] }[];
+};
+
+export type FeedStandings = {
+  /** The season the provider says this table belongs to. */
+  season: { startDate: Date | null; endDate: Date | null; currentMatchday: number | null };
+  rows: FeedStandingRow[];
+};
+
+/**
+ * Fetches one competition's league table. Costs a single request.
+ *
+ * Reads the `TOTAL` table specifically — the response also carries HOME and AWAY
+ * splits, and picking the first entry blindly would silently produce a home-only table.
+ */
+export async function fetchStandings(code: string): Promise<FeedStandings> {
+  const data = await request<ProviderStandings>(`/competitions/${code}/standings`);
+
+  const total =
+    data.standings?.find((entry) => entry.type === "TOTAL") ?? data.standings?.[0];
+
+  const config = STANDINGS_COMPETITIONS.find((entry) => entry.code === code);
+  const qualifyingPlaces = config?.qualifyingPlaces ?? 4;
+
+  const parseDate = (value?: string) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const rows = (total?.table ?? [])
+    .map((row): FeedStandingRow | null => {
+      const team = row.team?.shortName || row.team?.name;
+      if (!team || typeof row.position !== "number") return null;
+
+      return {
+        pos: row.position,
+        team,
+        played: row.playedGames ?? 0,
+        goalsFor: row.goalsFor ?? 0,
+        goalsAgainst: row.goalsAgainst ?? 0,
+        points: row.points ?? 0,
+        qualifying: row.position <= qualifyingPlaces,
+        // "W,W,L,D,W" -> ["W","W","L","D","W"]. Absent early in a season.
+        form: (row.form ?? "").split(",").map((f) => f.trim()).filter(Boolean),
+      };
+    })
+    .filter((row): row is FeedStandingRow => row !== null);
+
+  return {
+    season: {
+      startDate: parseDate(data.season?.startDate),
+      endDate: parseDate(data.season?.endDate),
+      currentMatchday: data.season?.currentMatchday ?? null,
+    },
+    rows,
+  };
+}
+
+/**
+ * Whether a table is safe to publish.
+ *
+ * The provider is inconsistent before a season starts, in two different ways — verified
+ * against all five leagues on 2026-07-30, three weeks before the 2026/27 kick-offs:
+ *
+ *  - Premier League, La Liga and Bundesliga returned **last season's final table** under
+ *    the new season's metadata (760 total games played across 20 teams — exactly 38 each).
+ *    Publishing it would have shown Arsenal on 85 points before a ball was kicked.
+ *  - Serie A and Ligue 1 returned a correctly zeroed new-season table, where all 20 teams
+ *    share position 1. That renders as visual nonsense and, since qualification is derived
+ *    from position, marked every team as a European qualifier.
+ *
+ * Both are wrong to show, and on a site with betting tips beside the table, a league
+ * table that looks current and isn't is a factual error a reader could act on. So a table
+ * is only published once its season has actually started and at least one game is in it.
+ */
+export function isPublishableTable(standings: FeedStandings): { ok: boolean; reason?: string } {
+  const { season, rows } = standings;
+
+  if (rows.length === 0) return { ok: false, reason: "the provider returned no rows" };
+
+  if (season.startDate && season.startDate.getTime() > Date.now()) {
+    return {
+      ok: false,
+      reason: `the season doesn't start until ${season.startDate.toISOString().slice(0, 10)}`,
+    };
+  }
+
+  if (!rows.some((row) => row.played > 0)) {
+    return { ok: false, reason: "no matches have been played yet" };
+  }
+
+  // Distinct positions are what make a table a table. Equal positions across the board is
+  // the zeroed-preseason shape; it would also make the qualification highlight meaningless.
+  if (new Set(rows.map((row) => row.pos)).size !== rows.length) {
+    return { ok: false, reason: "the provider returned duplicate positions" };
+  }
+
+  return { ok: true };
+}
