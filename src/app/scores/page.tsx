@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTickerMatches } from "@/lib/data/matches";
+import { getAllMatches } from "@/lib/data/matches";
 import { getStandings } from "@/lib/data/standings";
 import { DEFAULT_COMPETITION, SITE_TIMEZONE_LABEL } from "@/lib/constants";
 import { EmptyNotice, PageIntro, PublicPage } from "@/components/public-page";
@@ -16,10 +16,11 @@ const STATUS_STYLES = {
   live: "text-whistle",
   finished: "text-pitch-bright",
   upcoming: "text-floodlight-faint",
+  postponed: "text-torch-dim",
 } as const;
 
 export default async function ScoresPage() {
-  const [matches, standings] = await Promise.all([getTickerMatches(50), getStandings(20)]);
+  const [matches, standings] = await Promise.all([getAllMatches(60), getStandings(20)]);
 
   return (
     <PublicPage>
@@ -39,7 +40,7 @@ export default async function ScoresPage() {
                   key={match.id}
                   className={`flex items-center gap-4 px-4 py-3.5 ${
                     i === matches.length - 1 ? "" : "border-b border-line"
-                  }`}
+                  } ${match.status === "postponed" ? "opacity-60" : ""}`}
                 >
                   <div className="w-24 shrink-0">
                     <span

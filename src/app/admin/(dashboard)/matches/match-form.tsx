@@ -11,6 +11,7 @@ const STATUS_OPTIONS = [
   { value: "upcoming", label: "Upcoming — not started" },
   { value: "live", label: "Live — in progress" },
   { value: "finished", label: "Finished" },
+  { value: "postponed", label: "Postponed / cancelled — hidden from the ticker" },
 ];
 
 /** Suggested status line per state, so the field isn't a blank guess. */
@@ -18,6 +19,7 @@ const META_PLACEHOLDER: Record<string, string> = {
   upcoming: "Today 20:00",
   live: "76'",
   finished: "FT",
+  postponed: "Postponed",
 };
 
 export type MatchFormValues = {

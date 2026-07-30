@@ -35,7 +35,13 @@ export type TipResultStatus = (typeof TIP_RESULTS)[number];
 export const TIP_CONFIDENCE_LEVELS = [1, 2, 3, 4] as const;
 export type TipConfidence = (typeof TIP_CONFIDENCE_LEVELS)[number];
 
-export const MATCH_STATUSES = ["live", "finished", "upcoming"] as const;
+/**
+ * "postponed" covers the provider's POSTPONED, CANCELLED and SUSPENDED states.
+ * Kept distinct from "upcoming" because such a fixture is neither imminent nor
+ * played, and showing it in a glanceable "Live & Upcoming" ticker is just noise —
+ * the full /scores list still reports it, where the information is useful.
+ */
+export const MATCH_STATUSES = ["live", "finished", "upcoming", "postponed"] as const;
 export type MatchStatus = (typeof MATCH_STATUSES)[number];
 
 /** En dash — shown in place of a score before kickoff. */

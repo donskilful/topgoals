@@ -15,6 +15,7 @@ const STATUS_BADGES: Record<MatchStatus, string> = {
   live: "bg-[rgba(255,71,87,0.14)] text-whistle",
   finished: "bg-[rgba(34,201,116,0.14)] text-pitch-bright",
   upcoming: "bg-charcoal-3 text-floodlight-dim",
+  postponed: "bg-[rgba(201,147,39,0.16)] text-torch-dim",
 };
 
 export default async function MatchesPage({

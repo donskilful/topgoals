@@ -70,6 +70,55 @@ export function isFootballDataConfigured(): boolean {
   return Boolean(process.env.FOOTBALL_DATA_API_KEY);
 }
 
+/** Requests left in the current minute, as last reported by the provider. */
+export function remainingRequests(): number | null {
+  return requestsAvailable;
+}
+
+/**
+ * Self-throttling state, read from the provider's own response headers.
+ *
+ * football-data.org returns `X-Requests-Available-Minute` and
+ * `X-RequestCounter-Reset` on every response, and explicitly asks clients to honour
+ * them rather than discovering the limit by getting 429s. Tracking them here means a
+ * future multi-request job (standings, for instance) throttles itself instead of
+ * hammering the limiter.
+ */
+let requestsAvailable: number | null = null;
+let counterResetsAt = 0;
+
+/** Longest we'll block waiting for the limiter, to stay well inside a function timeout. */
+const MAX_WAIT_MS = 8_000;
+
+function recordRateLimit(headers: Headers) {
+  const available = Number(headers.get("x-requests-available-minute"));
+  const resetIn = Number(headers.get("x-requestcounter-reset"));
+
+  if (Number.isFinite(available)) requestsAvailable = available;
+  if (Number.isFinite(resetIn)) counterResetsAt = Date.now() + resetIn * 1000;
+}
+
+async function awaitCapacity() {
+  if (requestsAvailable === null || requestsAvailable > 0) return;
+
+  const waitMs = counterResetsAt - Date.now();
+  if (waitMs <= 0) {
+    // Window already rolled over; assume capacity is back.
+    requestsAvailable = null;
+    return;
+  }
+
+  if (waitMs > MAX_WAIT_MS) {
+    throw new FootballDataError(
+      `Rate limit reached; resets in ${Math.ceil(waitMs / 1000)}s. Skipping this run.`,
+      429,
+    );
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, waitMs + 250));
+  requestsAvailable = null;
+}
+
 async function request<T>(path: string): Promise<T> {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
@@ -78,12 +127,16 @@ async function request<T>(path: string): Promise<T> {
     );
   }
 
+  await awaitCapacity();
+
   const response = await fetch(`${BASE_URL}${path}`, {
     headers: { "X-Auth-Token": apiKey },
     // Always hit the provider — this runs from a cron job whose whole purpose is
     // fresh data, and Next would otherwise cache the fetch.
     cache: "no-store",
   });
+
+  recordRateLimit(response.headers);
 
   if (response.status === 429) {
     throw new FootballDataError(
@@ -131,6 +184,10 @@ function toSiteStatus(status: ProviderStatus): MatchStatus {
     case "FINISHED":
     case "AWARDED":
       return "finished";
+    case "POSTPONED":
+    case "CANCELLED":
+    case "SUSPENDED":
+      return "postponed";
     default:
       return "upcoming";
   }
