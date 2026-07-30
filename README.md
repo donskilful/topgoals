@@ -381,6 +381,17 @@ pick an item up without prior context.
 
 Every push gets an entry here — what shipped and why, newest first.
 
+### 2026-07-31 — "Around the Web" fixed on mobile and made the transfer entry point
+
+- **The heading wrapped onto two lines on a phone.** Title and caption shared a row, so the
+  caption stole enough width to break "Around the Web" in half — and at 26px display type a
+  wrapped heading dominated the screen. Stacked now, with the caption in italics beneath.
+  Verified at 412px: one line, no horizontal overflow.
+- **Added "More transfer news" and "More news" links below the list.** With no transfer
+  articles being generated, this block *is* the site's transfer coverage, so it needed a
+  route into the fuller per-category lists. Shown on the homepage only — `/news` and
+  `/transfers` already are the fuller view.
+
 ### 2026-07-31 — Placeholder content removed, real content in
 
 The five seeded articles ("Mbappé completes move to Real Madrid", "Saka signs new

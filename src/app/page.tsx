@@ -39,7 +39,18 @@ export default function Home() {
         <section className="grid grid-cols-1 items-start gap-9 py-9 lg:grid-cols-[1fr_336px]">
           <div className="flex flex-col gap-9">
             <LatestNews />
-            <AroundTheWeb limit={6} />
+            {/*
+              The homepage entry point for transfer coverage as well as news, since
+              nothing generates transfer articles — so the "view more" links are the
+              route into the fuller per-category lists.
+            */}
+            <AroundTheWeb
+              limit={6}
+              moreLinks={[
+                { label: "More transfer news", href: "/transfers" },
+                { label: "More news", href: "/news" },
+              ]}
+            />
           </div>
           <aside className="flex flex-col gap-5 lg:sticky lg:top-[84px]">
             <StandingsWidget />
