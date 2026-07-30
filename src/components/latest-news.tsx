@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getLatestNews } from "@/lib/data/articles";
+import { ArticleArtwork } from "./article-artwork";
 import { Tag } from "./tag";
 
 export async function LatestNews() {
@@ -38,7 +39,11 @@ export async function LatestNews() {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="h-full w-full transition-transform duration-200 group-hover:scale-105" />
+                  <ArticleArtwork
+                    seed={item.slug}
+                    category={item.tag}
+                    className="transition-transform duration-200 group-hover:scale-105"
+                  />
                 )}
               </div>
               <div>

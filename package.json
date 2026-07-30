@@ -8,11 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "news:dry-run": "tsx scripts/news-dry-run.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
+    "fast-xml-parser": "^5.10.1",
     "mongoose": "^9.8.1",
     "next": "16.2.12",
     "next-auth": "^5.0.0-beta.32",

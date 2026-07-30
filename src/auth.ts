@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authConfig } from "@/auth.config";
 import { dbConnect } from "@/lib/db";
 import { User } from "@/lib/models/user";
+import { UNUSABLE_PASSWORD_HASH } from "@/lib/constants";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -37,6 +38,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .lean();
 
         if (!user) return null;
+
+        // Service accounts (currently just the automation identity the audit log
+        // attributes cron writes to) carry a sentinel instead of a hash. Rejected
+        // before bcrypt sees it, so there's no chance of a comparison quirk letting
+        // one through.
+        if (user.passwordHash === UNUSABLE_PASSWORD_HASH) return null;
 
         const passwordMatches = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatches) return null;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getFeaturedArticle, getHeroSideStories } from "@/lib/data/articles";
+import { ArticleArtwork } from "./article-artwork";
 import { HeroGhost } from "./hero-ghost";
 import { HeroFigure } from "./hero-figure";
 import { Tag } from "./tag";
@@ -88,7 +89,9 @@ export async function Hero() {
                       className="h-full w-full object-cover"
                       loading="lazy"
                     />
-                  ) : null}
+                  ) : (
+                    <ArticleArtwork seed={story.slug} category={story.tag} />
+                  )}
                 </div>
                 <div>
                   <Tag tag={story.tag} />

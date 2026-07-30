@@ -17,6 +17,18 @@ export function isStaffRole(role: unknown): role is (typeof STAFF_ROLES)[number]
   return typeof role === "string" && STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number]);
 }
 
+/**
+ * Password-hash sentinel for accounts that must never be able to sign in.
+ *
+ * Currently just the automation identity the audit log attributes cron writes to (see
+ * `src/lib/automation-actor.ts`). Deliberately not a bcrypt hash: `authorize()` checks
+ * for it and refuses the account before any password comparison runs.
+ *
+ * Lives here rather than beside the automation actor so the auth config can read it
+ * without importing a module that pulls in Mongoose.
+ */
+export const UNUSABLE_PASSWORD_HASH = "!automation-no-login";
+
 /** CMS routes only administrators may open. Moderators are redirected away. */
 export const ADMIN_ONLY_PREFIXES = ["/admin/users", "/admin/activity-log"] as const;
 
