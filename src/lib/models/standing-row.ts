@@ -12,6 +12,16 @@ const standingRowSchema = new Schema(
     points: { type: Number, required: true, min: 0 },
     /** Marks a European-qualification position — rendered in green in the table. */
     qualifying: { type: Boolean, required: true, default: false },
+
+    /**
+     * Recent results, newest first: ["W","D","L",…]. Provided by the feed.
+     * Empty for hand-entered rows.
+     */
+    form: { type: [String], default: [] },
+
+    /** Set when the row came from the provider rather than being typed into the CMS. */
+    autoSynced: { type: Boolean, required: true, default: false },
+    lastSyncedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -21,7 +31,19 @@ standingRowSchema.virtual("goalDifference").get(function () {
   return this.goalsFor - this.goalsAgainst;
 });
 
-standingRowSchema.index({ competition: 1, pos: 1 }, { unique: true });
+/**
+ * A team appears once per table — that's the real invariant, and it's what the sync
+ * matches on.
+ *
+ * Position deliberately isn't part of the unique key. It used to be
+ * (`{competition, pos}` unique), which looked equivalent and wasn't: positions reshuffle
+ * on almost every sync, so updating row by row hit duplicate-key errors the moment two
+ * teams swapped places. Re-ordering a table by hand in the CMS hit the same wall.
+ */
+standingRowSchema.index({ competition: 1, team: 1 }, { unique: true });
+
+/** Plain (non-unique) — this is a sort key, not an identity. */
+standingRowSchema.index({ competition: 1, pos: 1 });
 
 export type StandingRowDoc = InferSchemaType<typeof standingRowSchema>;
 

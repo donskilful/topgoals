@@ -254,7 +254,65 @@ wrapper already knows the difference; it just throws that information away.
 
 ---
 
-## 8. Smaller known gaps
+## 8. MLS and Saudi Pro League tables
+
+**Priority: medium** · Effort: ~half a day
+
+### The problem
+
+Both were asked for and **neither is available on football-data.org at any tier**.
+`/competitions` returns exactly 13 competitions for our key, and `MLS`, `SPL` and `ASL`
+all return HTTP 403. The standings sync therefore covers the Premier League, La Liga,
+Serie A, Bundesliga, Ligue 1 and Brasileirão only.
+
+### Options, in order of preference
+
+1. **A second provider for those two leagues.** API-Football (api-sports.io) covers both.
+   Its free tier is 100 requests/day, which does *not* support a 15-minute cadence for two
+   leagues (192/day) but comfortably supports hourly (48/day). Standings barely change
+   between matches, so hourly is honestly enough.
+2. **Manual CMS entry.** Already works — add the rows under a competition name and they'll
+   show in the switcher alongside the synced ones. `autoSynced` stays false, so the sync
+   never touches them and the "prefer a live table" ordering won't promote them. Fine for
+   a league you update weekly; tedious otherwise.
+3. **A paid football-data.org plan** — worth checking their current coverage first, since
+   their catalogue is mostly European plus Brazil and MLS may not appear at any price.
+
+### If you add a provider
+
+Keep it behind the same shape as `src/lib/football-data.ts`: a `fetchStandings`-style
+function returning `FeedStandings`, so `syncStandings` doesn't need to know which provider
+a competition came from. The `isPublishableTable()` guard should apply to any provider —
+the pre-season inconsistencies it catches are unlikely to be unique to this one.
+
+---
+
+## 9. Richer match reports need a paid tier
+
+**Priority: medium** · Effort: ~half a day once the tier is available
+
+The free tier returns **no scorers, bookings or referees**, so generated reports can't name
+who scored and are necessarily brief. The template engine in
+`src/lib/reports/match-report.ts` is built to take more: with goal events it could write
+genuinely good reports, still with no LLM cost. This is the single highest-value upgrade to
+the automated content.
+
+Also unavailable on the free tier: `form` (the recent-results string). The `form` field
+exists on `StandingRow` and is always empty today — it's populated by the mapper but the
+provider returns nothing, and no UI reads it yet.
+
+### Also worth doing
+
+- **League-table context in reports** ("the win lifts them to fourth"). Pure JS, we already
+  store standings. Left out because standings and match data can disagree mid-round, and a
+  wrong position is worse than none.
+- **Last season's final table as archive content.** The sync deliberately discards it, but
+  it's real data — a "2025/26 final table" view would be honest and useful, and needs only
+  a season label on the model plus a heading.
+
+---
+
+## 10. Smaller known gaps
 
 | Gap | Where | Notes |
 | --- | --- | --- |
@@ -280,7 +338,11 @@ Not yet deployed. Before going live:
 - [ ] Delete the `moderator@topgoals.test` demo account
 - [ ] Set all environment variables in the Vercel project (they are **not** read
       from `.env.local` in production)
-- [ ] Restrict Atlas Network Access to Vercel's ranges rather than `0.0.0.0/0`
+- [ ] Atlas Network Access will need `0.0.0.0/0`. Vercel gives no fixed egress IPs on
+      Hobby or Pro, so there is nothing to whitelist — static IPs are Enterprise-only.
+      That makes the database password the *only* protection, so the credential rotation
+      above matters more than the IP rule ever did, and the DB user should be scoped to
+      `readWrite` on `topgoals` alone
 - [ ] Review `/privacy` and `/about` for legal accuracy in your jurisdiction —
       they are written in good faith but have not been reviewed by a lawyer, and
       gambling-adjacent sites attract more scrutiny than most

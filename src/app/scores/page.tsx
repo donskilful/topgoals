@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getAllMatches } from "@/lib/data/matches";
-import { getStandings } from "@/lib/data/standings";
-import { DEFAULT_COMPETITION, SITE_TIMEZONE_LABEL } from "@/lib/constants";
+import { getAllLeagueTables } from "@/lib/data/standings";
+import { LeagueTables } from "@/components/league-tables";
+import { SITE_TIMEZONE_LABEL } from "@/lib/constants";
 import { EmptyNotice, PageIntro, PublicPage } from "@/components/public-page";
 
 export const revalidate = 60;
@@ -20,7 +21,7 @@ const STATUS_STYLES = {
 } as const;
 
 export default async function ScoresPage() {
-  const [matches, standings] = await Promise.all([getAllMatches(60), getStandings(20)]);
+  const [matches, tables] = await Promise.all([getAllMatches(60), getAllLeagueTables(20)]);
 
   return (
     <PublicPage>
@@ -72,47 +73,13 @@ export default async function ScoresPage() {
           )}
 
           <p className="mt-3 text-[11px] text-floodlight-faint">
-            Scores are updated manually by our team, so there may be a short delay.
+            Scores and tables update automatically every few minutes. Corrections made by
+            our team always take priority over the feed.
           </p>
         </section>
 
         <aside className="lg:sticky lg:top-[84px]">
-          <div className="rounded-xl border border-line bg-charcoal p-4">
-            <h2 className="mb-3 font-display text-[15px] font-normal uppercase tracking-wide">
-              {DEFAULT_COMPETITION} Table
-            </h2>
-            {standings.length === 0 ? (
-              <p className="text-[13px] text-floodlight-dim">The table hasn&apos;t been set up yet.</p>
-            ) : (
-              <table className="w-full border-collapse text-[13px]">
-                <thead>
-                  <tr>
-                    <th className="border-b border-line px-1 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-floodlight-faint">#</th>
-                    <th className="border-b border-line px-1 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-floodlight-faint">Team</th>
-                    <th className="border-b border-line px-1 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-wide text-floodlight-faint">P</th>
-                    <th className="border-b border-line px-1 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-wide text-floodlight-faint">GD</th>
-                    <th className="border-b border-line px-1 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-wide text-floodlight-faint">Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {standings.map((row, i) => {
-                    const border = i === standings.length - 1 ? "" : "border-b border-line";
-                    return (
-                      <tr key={row.id}>
-                        <td className={`px-1 py-2 font-mono ${border} ${row.qualifying ? "text-pitch-bright" : "text-floodlight-faint"}`}>
-                          {row.pos}
-                        </td>
-                        <td className={`px-1 py-2 ${border}`}>{row.team}</td>
-                        <td className={`px-1 py-2 text-center font-mono ${border}`}>{row.played}</td>
-                        <td className={`px-1 py-2 text-center font-mono ${border}`}>{row.gd}</td>
-                        <td className={`px-1 py-2 text-center font-mono font-extrabold ${border}`}>{row.points}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <LeagueTables tables={tables} />
         </aside>
       </div>
     </PublicPage>

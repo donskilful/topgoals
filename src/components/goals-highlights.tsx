@@ -10,7 +10,7 @@ export async function GoalsHighlights() {
         <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
           Goals &amp; Highlights
         </h3>
-        <div className="text-[13px] text-floodlight-dim">Clipped within minutes of full time</div>
+        <div className="text-[13px] text-floodlight-dim">The moments worth watching again</div>
       </div>
 
       {clips.length === 0 ? (

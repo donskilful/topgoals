@@ -6,6 +6,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/standings",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/news",
       "schedule": "0 */2 * * *"
     }
