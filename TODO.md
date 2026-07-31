@@ -87,25 +87,32 @@ news, because:
 
 See the README's *Automated content* section for the full shape.
 
-### Open decision: there is no transfer-article generator
+### Resolved: transfer and news articles are generated (31 Jul 2026)
 
-Worth being explicit, because it's easy to miss: after the LLM was removed, **nothing
-produces Transfer-category articles**. Match reports are generated but are always `News`.
-So `/transfers` shows the "Around the Web" link list and no TopGoals articles at all.
+There *is* a generator now, and it needs no LLM. `src/lib/news/extract.ts` parses each
+headline into structured facts (who, which clubs, what happened, how certain) and
+`compose.ts` writes sentences from that structure. No source phrasing reaches the composer.
 
-That isn't an oversight — it's the direct consequence of the JS-only decision. A transfer
-story only exists as another publisher's prose, and turning prose into prose without a
-language model means rearranging their words, which is a derivative work. The three ways
-forward:
+Things to know before changing it:
 
-1. **Accept the link list.** Free, zero risk, but readers leave the site and the archive
-   never grows.
-2. **Reinstate LLM drafting for transfers and non-match news only.** Match reports stay
-   free JS, so this is a fraction of the original cost — roughly **$10–20/month** at
-   6–8 articles a day rather than the ~$88 estimated when the LLM wrote everything. The
-   code to do it is in the git history (`src/lib/ai/draft-article.ts`, removed in the
-   "Generate match reports in JavaScript" commit) and can be restored largely as-is.
-3. **Write them by hand in the CMS.** Best quality, real ongoing effort.
+- **Certainty must never be upgraded.** A reported intention publishes as a report, credited
+  to the outlet. Breaking this puts a false claim next to betting tips.
+- **Figures come from the headline only.** Summaries cover several stories at once, and
+  reading them attributed one player's contract length to another in testing.
+- **Standings context comes only from `autoSynced` rows**, or a stale table gets stated as
+  current.
+- **A junk capture means try the next pattern**, not abandon the headline.
+
+Remaining improvements:
+
+- **Extraction coverage is deliberately narrow** — around a fifth of headlines. Adding
+  patterns is the cheapest way to more articles; each one needs a real-corpus check that it
+  doesn't misfire. Governance stories ("FA raises minimum ban to 10 matches", "Premier League
+  agrees £1.5bn EFL deal") are the biggest untouched category and are genuinely harder,
+  because the facts vary in shape.
+- **Articles are short** — two paragraphs from a headline's worth of facts. More context from
+  our own data (recent form, head-to-head, squad numbers) would deepen them at no cost.
+- **A review queue** is still the honest safeguard, since nothing is read before publication.
 
 ### Follow-ups worth doing
 
