@@ -78,18 +78,24 @@ export default async function TipsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-mono text-[15px] font-bold">{tip.odds}</p>
+                  <p className="font-mono text-[15px] font-bold">{tip.odds ?? "—"}</p>
                   <p className="font-body text-[10px] font-semibold uppercase tracking-wide text-floodlight-faint">
                     Odds
                   </p>
-                  <div className="mt-1.5 flex justify-end gap-0.5" title={`Confidence ${tip.confidence} of 4`}>
-                    {[1, 2, 3, 4].map((i) => (
-                      <span
-                        key={i}
-                        className={`h-1.5 w-1.5 rounded-full ${i <= tip.confidence ? "bg-pitch-bright" : "bg-line"}`}
-                      />
-                    ))}
-                  </div>
+                  {/* Omitted rather than shown empty when we haven't rated the pick ourselves. */}
+                  {tip.confidence !== null && (
+                    <div
+                      className="mt-1.5 flex justify-end gap-0.5"
+                      title={`Confidence ${tip.confidence} of 4`}
+                    >
+                      {[1, 2, 3, 4].map((i) => (
+                        <span
+                          key={i}
+                          className={`h-1.5 w-1.5 rounded-full ${i <= tip.confidence! ? "bg-pitch-bright" : "bg-line"}`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -126,7 +132,7 @@ export default async function TipsPage() {
                       </td>
                       <td className={`px-4 py-3 font-semibold ${border}`}>{tip.fixture}</td>
                       <td className={`px-4 py-3 text-floodlight-dim ${border}`}>{tip.pick}</td>
-                      <td className={`px-4 py-3 font-mono ${border}`}>{tip.odds}</td>
+                      <td className={`px-4 py-3 font-mono ${border}`}>{tip.odds ?? "—"}</td>
                       <td className={`px-4 py-3 ${border}`}>
                         <span
                           className={`rounded px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide ${RESULT_STYLES[tip.result]}`}

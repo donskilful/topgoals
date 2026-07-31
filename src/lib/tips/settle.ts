@@ -1,4 +1,5 @@
 import { parseMarket, type Market, type Period, type Side } from "@/lib/tips/markets";
+import { sameTeam } from "@/lib/tips/teams";
 
 /**
  * Grades a tip against the actual result of its fixture.
@@ -28,30 +29,16 @@ export type Settlement =
 /**
  * Matches a tipster's team wording against the fixture's team names.
  *
- * Both sides are our own data — the tip is typed in the CMS, the fixture comes from the
- * provider with names already normalised — but they still won't be identical ("Man City" vs
- * "Manchester City"). Containment in either direction handles that.
+ * The comparison itself lives in `@/lib/tips/teams` because the settlement job and provider
+ * ingestion have to agree with it exactly — if they disagreed, a tip could be matched to a
+ * fixture that the settler then refused to grade.
  *
  * Ambiguity is treated as failure: if the text matches both teams, or neither, we don't know
  * which side was backed and must not pick one.
  */
 function resolveSide(team: string, outcome: MatchOutcome): Side | null {
-  const normalise = (value: string) =>
-    value
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\b(fc|afc|cf|sc|ac)\b/g, "")
-      .replace(/[^a-z0-9]/g, "");
-
-  const needle = normalise(team);
-  if (needle.length < 3) return null;
-
-  const home = normalise(outcome.home);
-  const away = normalise(outcome.away);
-
-  const matchesHome = home.includes(needle) || needle.includes(home);
-  const matchesAway = away.includes(needle) || needle.includes(away);
+  const matchesHome = sameTeam(team, outcome.home);
+  const matchesAway = sameTeam(team, outcome.away);
 
   // Matching both is as useless as matching neither.
   if (matchesHome === matchesAway) return null;
@@ -82,7 +69,39 @@ function winningSide(home: number, away: number): Side {
   return "draw";
 }
 
+/**
+ * Grades a combo: every leg has to land.
+ *
+ * The order the legs are judged in is deliberate. A single losing leg loses the whole bet
+ * regardless of what the others did, so that's checked first and can be returned even if
+ * another leg is ungradeable. Only when nothing has lost does an ungradeable leg force the
+ * tip back to pending — otherwise a combo containing one unreadable leg could never be
+ * settled, even when a different leg had already killed it.
+ *
+ * A void leg drops out of the accumulator the way a bookmaker treats a push, so a combo whose
+ * every leg voided is itself void.
+ */
+function gradeCombo(legs: Market[], outcome: MatchOutcome): Settlement {
+  const graded = legs.map((leg) => grade(leg, outcome));
+
+  const lost = graded.find((settlement) => settlement.result === "lost");
+  if (lost) return { result: "lost", reason: `leg failed — ${lost.reason}` };
+
+  const ungradeable = graded.find((settlement) => settlement.result === null);
+  if (ungradeable) return { result: null, reason: ungradeable.reason };
+
+  const won = graded.filter((settlement) => settlement.result === "won");
+  if (won.length === 0) return { result: "void", reason: "every leg voided" };
+
+  return {
+    result: "won",
+    reason: `all ${graded.length} legs landed — ${won[0].reason}`,
+  };
+}
+
 function grade(market: Market, outcome: MatchOutcome): Settlement {
+  if (market.kind === "combo") return gradeCombo(market.legs, outcome);
+
   const period: Period = "period" in market ? market.period : "full";
   const goals = goalsFor(outcome, period);
 

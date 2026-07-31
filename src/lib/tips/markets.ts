@@ -39,7 +39,17 @@ export type Market =
   /** "Correct Score 2-1" */
   | { kind: "correct_score"; home: number; away: number }
   /** "Arsenal clean sheet", "Arsenal to win to nil" */
-  | { kind: "clean_sheet"; team: string; winToNil: boolean };
+  | { kind: "clean_sheet"; team: string; winToNil: boolean }
+  /**
+   * Two or more selections that must *all* land: "BTTS and Rangers to win".
+   *
+   * Scraped providers publish these constantly — roughly a fifth of the picks read off
+   * footballpredictions.net are this shape. They matter for correctness, not just coverage:
+   * before combos were parsed, "BTTS and Rangers to win" matched the BTTS branch alone, so a
+   * pick that lost on the result leg would have been graded a winner off the goals leg. Silently
+   * inflating the record is the exact failure this module exists to prevent.
+   */
+  | { kind: "combo"; legs: Market[] };
 
 /**
  * Selections we can recognise but must never grade from a scoreline.
@@ -64,8 +74,7 @@ const NEEDS_MORE_THAN_A_SCORELINE = [
  * Wordings that are gradeable despite colliding with the refusal list above.
  *
  * "Both Teams to Score" contains "to score", which the goalscorer rule matches — so a market
- * that is *exactly* gradeable from a scoreline was being refused. Checked first, because a
- * specific known-good phrase should always beat a general suspicion.
+ * that is *exactly* gradeable from a scoreline was being refused.
  */
 const ALWAYS_GRADEABLE = [
   /\bbtts\b/i,
@@ -75,9 +84,18 @@ const ALWAYS_GRADEABLE = [
 ];
 
 export function describeUnsettleable(pick: string): string | null {
-  if (ALWAYS_GRADEABLE.some((pattern) => pattern.test(pick))) return null;
+  // These phrases are *removed* before the refusal patterns run, rather than used to wave the
+  // whole selection through. Exempting the entire string was actively unsafe: "BTTS and Haaland
+  // anytime scorer" contains "BTTS", so it passed as gradeable, and then only its BTTS leg was
+  // graded — turning a bet that needed a goalscorer into a winner off the scoreline alone.
+  // Stripping the known-good phrase leaves "and Haaland anytime scorer" for the goalscorer rule
+  // to catch, while "Both Teams to Score" strips to nothing and is correctly allowed.
+  const remaining = ALWAYS_GRADEABLE.reduce(
+    (text, pattern) => text.replace(new RegExp(pattern.source, "gi"), " "),
+    pick,
+  );
 
-  const hit = NEEDS_MORE_THAN_A_SCORELINE.find((entry) => entry.re.test(pick));
+  const hit = NEEDS_MORE_THAN_A_SCORELINE.find((entry) => entry.re.test(remaining));
   return hit ? `needs ${hit.needs}, which the fixture feed doesn't provide` : null;
 }
 
@@ -100,6 +118,33 @@ function stripNoise(text: string): string {
     .trim();
 }
 
+/**
+ * Splits a combo into its legs, or returns null if this isn't one.
+ *
+ * Conservative by design. A leg that doesn't parse means we've misread the wording — most
+ * likely a team whose name contains the word "and" ("Bosnia and Herzegovina to win") — so the
+ * whole split is abandoned and the caller re-reads the text as a single selection. Better to
+ * fall back to a correct single parse than to confidently grade half a pick.
+ */
+function parseCombo(raw: string): Market | null {
+  const parts = raw
+    .split(/\s+and\s+|\s*&\s*|\s*\+\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) return null;
+
+  const legs: Market[] = [];
+
+  for (const part of parts) {
+    const leg = parseSingleMarket(part);
+    if (!leg) return null;
+    legs.push(leg);
+  }
+
+  return { kind: "combo", legs };
+}
+
 export function parseMarket(pick: string): Market | null {
   const raw = pick.trim();
   if (!raw) return null;
@@ -107,12 +152,28 @@ export function parseMarket(pick: string): Market | null {
   // Refuse anything needing data we don't have, before any pattern can half-match it.
   if (describeUnsettleable(raw)) return null;
 
+  // Combos first: "BTTS and Rangers to win" also matches the plain BTTS pattern, and taking
+  // that shortcut would grade the pick on one leg and ignore the other.
+  return parseCombo(raw) ?? parseSingleMarket(raw);
+}
+
+/** Parses one selection. Combos are handled by `parseMarket`, which calls this per leg. */
+function parseSingleMarket(pick: string): Market | null {
+  const raw = pick.trim();
+  if (!raw) return null;
+
+  // Re-checked per leg, not just on the whole selection: a combo is split before its legs are
+  // read, so this is what stops one ungradeable leg being quietly dropped from a bet.
+  if (describeUnsettleable(raw)) return null;
+
   const period = detectPeriod(raw);
   const text = stripNoise(raw);
 
-  // --- Correct score: "Correct Score 2-1", "2-1" ---
+  // --- Correct score: "Correct Score 2-1", or a bare "2-1" ---
   const correctScore = text.match(/(?:^|\s)(\d{1,2})\s*[-–:]\s*(\d{1,2})(?:\s|$)/);
-  if (correctScore && /correct\s*score/i.test(raw)) {
+  // A bare scoreline is unambiguous — no other market is written as two numbers and a dash —
+  // and providers publish correct-score picks exactly that way, with no label at all.
+  if (correctScore && (/correct\s*score/i.test(raw) || /^\d{1,2}\s*[-–:]\s*\d{1,2}$/.test(text))) {
     return {
       kind: "correct_score",
       home: Number(correctScore[1]),
@@ -154,8 +215,10 @@ export function parseMarket(pick: string): Market | null {
     return { kind: "handicap", team: handicap[1].trim(), line: Number(handicap[2]) };
   }
 
-  // --- Double chance: "Arsenal or Draw", "Draw or Arsenal" ---
-  const doubleChance = text.match(/^(.+?)\s+or\s+(.+?)$/i);
+  // --- Double chance: "Arsenal or Draw", "Draw or Arsenal", "Home/Draw" ---
+  // The slash form is how the market is conventionally written once the "Double Chance:" label
+  // has been stripped, so it has to be accepted alongside the word "or".
+  const doubleChance = text.match(/^(.+?)\s*(?:\s+or\s+|\/)\s*(.+?)$/i);
   if (doubleChance) {
     const parts = [doubleChance[1].trim(), doubleChance[2].trim()];
     const sides: Side[] = [];

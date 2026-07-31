@@ -30,8 +30,10 @@ export type TipFormValues = {
   competition: string;
   fixture: string;
   pick: string;
-  odds: string;
-  confidence: number;
+  // Nullable: a tip ingested from a provider carries neither, and the form shows the
+  // field empty rather than pre-filling a price nobody quoted.
+  odds: string | null;
+  confidence: number | null;
   kickoffAt: string;
   result: string;
 };
@@ -91,7 +93,7 @@ export function TipForm({
           label="Odds"
           required
           inputMode="decimal"
-          defaultValue={v("odds", tip?.odds)}
+          defaultValue={v("odds", tip?.odds ?? "")}
           error={state.fieldErrors.odds}
           placeholder="1.85"
         />

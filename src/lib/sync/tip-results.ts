@@ -3,6 +3,7 @@ import { Tip } from "@/lib/models/tip";
 import { Match } from "@/lib/models/match";
 import { settleTip, type MatchOutcome } from "@/lib/tips/settle";
 import { describeUnsettleable } from "@/lib/tips/markets";
+import { sameTeam } from "@/lib/tips/teams";
 import { getAutomationActor } from "@/lib/automation-actor";
 import { logAudit } from "@/lib/audit";
 import { revalidateContent } from "@/lib/actions/revalidate";
@@ -84,16 +85,6 @@ function toOutcome(match: ResolvedMatch): MatchOutcome {
   };
 }
 
-/** Loose team-name comparison, tolerant of the ways two sources write the same club. */
-function normaliseTeam(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\b(fc|afc|cf|sc|ac|cd|ss|as)\b/g, "")
-    .replace(/[^a-z0-9]/g, "");
-}
-
 /**
  * Finds the fixture a tip refers to.
  *
@@ -119,7 +110,7 @@ async function resolveMatch(tip: {
   const parts = tip.fixture.split(/\s+(?:vs?\.?|-|–|@)\s+/i);
   if (parts.length !== 2) return null;
 
-  const [left, right] = parts.map((part) => normaliseTeam(part));
+  const [left, right] = parts.map((part) => part.trim());
   if (left.length < 3 || right.length < 3) return null;
 
   const tolerance = KICKOFF_TOLERANCE_HOURS * 60 * 60 * 1000;
@@ -132,11 +123,7 @@ async function resolveMatch(tip: {
   }).lean()) as ResolvedMatch[];
 
   const matches = candidates.filter((match) => {
-    const home = normaliseTeam(match.home);
-    const away = normaliseTeam(match.away);
-
-    const pairs = (a: string, b: string) =>
-      (home.includes(a) || a.includes(home)) && (away.includes(b) || b.includes(away));
+    const pairs = (a: string, b: string) => sameTeam(a, match.home) && sameTeam(b, match.away);
 
     // Either orientation — a tipster may write the away side first.
     return pairs(left, right) || pairs(right, left);

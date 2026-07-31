@@ -2,7 +2,15 @@ import Link from "next/link";
 import { getTodaysTips } from "@/lib/data/tips";
 import { SITE_TIMEZONE_LABEL } from "@/lib/constants";
 
-function ConfidenceDots({ level }: { level: number }) {
+/**
+ * Renders nothing when a tip has no confidence rating.
+ *
+ * Ingested provider picks aren't rated by us, and four empty dots would read as "rated zero"
+ * — a judgement we never made.
+ */
+function ConfidenceDots({ level }: { level: number | null }) {
+  if (level === null) return null;
+
   return (
     <div
       className="mt-1.5 flex justify-end gap-0.5"
@@ -62,9 +70,17 @@ export async function TodaysPicks() {
               <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[rgba(245,185,66,0.12)] px-2.5 py-[5px] text-xs font-bold text-torch">
                 ⚽ {tip.pick}
               </div>
+              {/* Credited when the selection isn't ours. A reader deciding whether to back a pick
+                  is entitled to know whose opinion it actually is. */}
+              {tip.source ? (
+                <div className="mt-1.5 text-[10px] text-floodlight-faint">
+                  Selection via {tip.source.name}
+                </div>
+              ) : null}
             </div>
             <div className="text-right font-mono text-[15px] font-bold">
-              {tip.odds}
+              {/* An em dash, not a plausible-looking price, when the source published none. */}
+              {tip.odds ?? "—"}
               <span className="block font-body text-[10px] font-semibold uppercase tracking-wide text-floodlight-faint">
                 Odds
               </span>

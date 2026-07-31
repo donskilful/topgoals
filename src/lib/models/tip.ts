@@ -8,9 +8,17 @@ const tipSchema = new Schema(
     fixture: { type: String, required: true, trim: true },
     /** The selection itself, e.g. "Over 2.5 Goals". */
     pick: { type: String, required: true, trim: true },
-    /** Kept as a string to preserve the exact decimal shown, e.g. "1.85". */
-    odds: { type: String, required: true, trim: true },
-    confidence: { type: Number, enum: TIP_CONFIDENCE_LEVELS, required: true },
+    /**
+     * Kept as a string to preserve the exact decimal shown, e.g. "1.85".
+     *
+     * Optional, because scraped providers publish a selection without a price. The alternative
+     * was to invent one, and an invented price is not a small lie: profit in units is computed
+     * as (odds − 1) per winner, so a made-up 1.85 would show a reader a return that nobody could
+     * have achieved. Absent odds are rendered as "—" and excluded from the units figure.
+     */
+    odds: { type: String, default: null, trim: true },
+    /** Optional for the same reason: a provider that states no confidence is given none. */
+    confidence: { type: Number, enum: TIP_CONFIDENCE_LEVELS, default: null },
     result: { type: String, enum: TIP_RESULTS, required: true, default: "pending" },
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
 
@@ -47,12 +55,32 @@ const tipSchema = new Schema(
       ),
       default: null,
     },
+
+    /**
+     * Whether this tip is shown to readers.
+     *
+     * Tips written in the CMS are published — a human decided to post them. Ingested tips are
+     * not, until the provider they came from has built a verified record on results we settled
+     * ourselves (see `src/lib/data/providers.ts`).
+     *
+     * This is what makes scraping defensible. A provider's advertised strike rate is marketing,
+     * and nothing on the pages we read carries a probability figure at all, so there is no way
+     * to filter for "high confidence" at the moment of ingestion. The only trustworthy filter is
+     * time: track every pick, settle it against the real scoreline, and let a provider earn its
+     * way onto the site. The consequence is deliberate — a newly added provider publishes
+     * nothing for its first couple of weeks while its record accumulates.
+     */
+    published: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
 
 tipSchema.index({ kickoffAt: -1 });
 tipSchema.index({ result: 1, kickoffAt: -1 });
+// Every public read is filtered to published tips.
+tipSchema.index({ published: 1, result: 1, kickoffAt: -1 });
+// Ingestion's duplicate check: has this provider already given us this pick on this fixture?
+tipSchema.index({ "source.name": 1, matchId: 1 });
 // The settlement job's query: unsettled tips whose fixture has had time to finish.
 tipSchema.index({ result: 1, matchId: 1 });
 // Per-provider record aggregation.
