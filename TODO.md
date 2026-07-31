@@ -68,22 +68,19 @@ wrapper exists, and it closes the loop for the person who wrote in.
 
 ---
 
-## 2. Automate news and transfer ingestion — ✅ done (30 Jul 2026)
+## 2. Automate news and transfer ingestion — ✅ done (31 Jul 2026)
 
-Done, but **not** the way this entry originally proposed, and the difference matters if
-you pick this up.
+Done, and not the way this entry originally proposed. Worth reading the history, because the
+reasoning changed twice and the final position isn't obvious:
 
-An LLM-drafting pipeline was built first, then removed in favour of plain JavaScript to
-avoid a recurring per-article cost. That works for match reports and cannot work for
-news, because:
-
-- **Match reports** are generated from structured facts we already hold (scoreline,
-  half-time score, competition, matchday). Facts aren't copyrightable and the sentences
-  are ours, so the output is original, free and deterministic.
-- **News/transfer stories** only exist as another publisher's prose. Rearranging their
-  words in JavaScript is a derivative work however far it drifts, and reads badly. So
-  those became an attributed link list ("Around the Web") that sends readers to the
-  source — option (a) from the original plan.
+1. An **LLM-drafting** pipeline was built first, then removed to avoid a recurring
+   per-article cost.
+2. That left match reports (generated from structured match data we hold) but **no** news or
+   transfer articles, on the reasoning that a feed only gives us another publisher's prose.
+3. That reasoning was too broad. *Who moved where* is a fact, and facts aren't
+   copyrightable — the words used to report them are. So headlines are now parsed into
+   structured facts and the prose is composed from the structure, exactly as match reports
+   are. What we still never do is rework a source's sentences.
 
 See the README's *Automated content* section for the full shape.
 
