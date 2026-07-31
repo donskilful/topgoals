@@ -16,7 +16,7 @@ export default async function HighlightsPage() {
     <PublicPage>
       <PageIntro
         title="Goals & Highlights"
-        description="Clipped within minutes of full time."
+        description="The moments worth watching again."
       />
 
       {clips.length === 0 ? (
@@ -34,6 +34,16 @@ export default async function HighlightsPage() {
                     src={clip.videoUrl}
                     poster={clip.thumbnailUrl ?? undefined}
                     controls
+                    /**
+                     * Removes Download from the player's overflow menu. Everything else in
+                     * there (playback speed, fullscreen, volume) is left alone.
+                     *
+                     * This is a UI change, not protection: Chromium honours `controlsList`,
+                     * Firefox and Safari ignore it, and the clip is served from a public
+                     * Cloudinary URL anyone can request directly. Actually preventing
+                     * downloads needs signed, expiring delivery URLs — see TODO.md.
+                     */
+                    controlsList="nodownload"
                     preload="none"
                     className="h-full w-full object-cover"
                   />

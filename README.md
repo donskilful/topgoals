@@ -412,6 +412,20 @@ pick an item up without prior context.
 
 Every push gets an entry here — what shipped and why, newest first.
 
+### 2026-07-31 — Download removed from the highlight player
+
+`controlsList="nodownload"` on the clip player, which drops Download from the overflow menu
+and leaves everything else (playback speed, volume, fullscreen) alone.
+
+Worth recording that this is cosmetic rather than protective — Chromium honours the
+attribute, Firefox and Safari ignore it, and the clip is a public Cloudinary URL anyone can
+request directly. Signed expiring URLs are the real mechanism if clips ever need it; noted in
+`TODO.md`.
+
+Also caught: **"Clipped within minutes of full time." was still on `/highlights`.** The same
+claim was removed from the homepage section earlier, but this second copy was missed, so the
+site was still promising an automation that doesn't exist.
+
 ### 2026-07-31 — Highlights read their own length and poster frame
 
 Three fields on the highlight form that asked an editor for information the video already

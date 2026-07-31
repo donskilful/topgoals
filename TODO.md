@@ -336,7 +336,30 @@ provider returns nothing, and no UI reads it yet.
 
 ---
 
-## 10. Smaller known gaps
+## 10. Download protection for highlight clips
+
+**Priority: low** · Effort: ~half a day
+
+`controlsList="nodownload"` removes Download from the player's overflow menu, which is what
+was asked for — but it is a UI change and not protection:
+
+- Chromium honours it; **Firefox and Safari ignore it entirely.**
+- The clip is served from a public Cloudinary URL. Anyone can open devtools, read the `src`,
+  and fetch the file directly.
+
+If clips ever need actually protecting (licensed footage, or exclusive content worth paying
+for), the mechanism is Cloudinary **signed delivery URLs** with a short expiry: set the
+account to restrict unsigned delivery for video, then generate a time-limited URL per request
+server-side. That breaks static rendering for the highlights page, since the URL can no longer
+be baked into HTML — it would need to be fetched per view, which is why it hasn't been done
+pre-emptively.
+
+Full prevention isn't achievable at all: anything a browser can play can be captured. Signed
+URLs raise the effort, they don't eliminate it.
+
+---
+
+## 11. Smaller known gaps
 
 | Gap | Where | Notes |
 | --- | --- | --- |
