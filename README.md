@@ -427,6 +427,13 @@ submit and the Server Action wiring is untouched.
 Cancel holds focus on open — in a destructive dialog the safe option should be the one under a
 stray Enter.
 
+**No mirrored React state.** The dialog element's own `open` is the single source of truth.
+Mirroring it in state and closing via an effect has a failure mode that strands the user: if
+the two ever disagree — a hot reload mid-edit, an `onClose` that didn't fire, a remount while
+open — then `setOpen(false)` is a no-op, no effect runs, and the modal cannot be dismissed at
+all. It traps focus with no way out but a page reload. Calling `showModal()` / `close()`
+directly can't desync, because there is nothing to sync.
+
 Two bugs found by testing rather than reading:
 
 - **The dialog rendered in the top-left corner.** A native modal centres itself via
