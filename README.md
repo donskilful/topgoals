@@ -412,6 +412,30 @@ pick an item up without prior context.
 
 Every push gets an entry here — what shipped and why, newest first.
 
+### 2026-07-31 — A real delete confirmation, everywhere
+
+`window.confirm()` replaced with a proper dialog. Every delete in the CMS funnels through one
+`DeleteButton`, so articles, transfer news, tips, highlights, matches, standings rows, staff
+accounts and reader messages all pick it up at once.
+
+Built on the native `<dialog>` element rather than a hand-rolled overlay, which gets the
+easily-botched parts for free: focus trapped while open, Escape to close, an inert backdrop,
+and rendering in the browser's top layer so it can't be clipped by a table's `overflow` or
+lose a z-index fight. The dialog sits inside the form, so the confirm button stays an ordinary
+submit and the Server Action wiring is untouched.
+
+Cancel holds focus on open — in a destructive dialog the safe option should be the one under a
+stray Enter.
+
+Two bugs found by testing rather than reading:
+
+- **The dialog rendered in the top-left corner.** A native modal centres itself via
+  `margin: auto`, and Tailwind's preflight sets `margin: 0` on every element, stripping it.
+- **Dismiss-on-outside-click was dead code.** Sized to its content, clicks outside the card
+  land on the `::backdrop` pseudo-element and never reach the dialog's handler. The dialog now
+  fills the viewport with the card as a child, so those clicks hit a real element, and a panel
+  ref decides what counts as outside.
+
 ### 2026-07-31 — Download removed from the highlight player
 
 `controlsList="nodownload"` on the clip player, which drops Download from the overflow menu

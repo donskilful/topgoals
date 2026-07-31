@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/lib/form-state";
 
@@ -194,26 +195,115 @@ export function SubmitButton({
   );
 }
 
-/** Destructive submit used by delete forms, with a native confirm() guard. */
+/**
+ * Destructive submit used by every delete form, guarded by a real confirmation dialog.
+ *
+ * Built on the native `<dialog>` element rather than a hand-rolled overlay, which gets the
+ * things that are easy to botch for free: focus is trapped inside while open, Escape closes
+ * it, the backdrop is inert, and it renders in the browser's top layer so it can never be
+ * clipped by a table's `overflow` or lose a z-index fight.
+ *
+ * The dialog sits *inside* the form, so the confirm button is an ordinary submit and the
+ * Server Action wiring is untouched — `showModal()` promotes it visually without moving it in
+ * the DOM, so form association survives.
+ *
+ * Cancel takes focus on open. For a destructive action the safe option should be the one
+ * under a stray Enter or Space.
+ */
 export function DeleteButton({
   confirmMessage,
   label = "Delete",
+  confirmLabel = "Delete",
 }: {
   confirmMessage: string;
   label?: string;
+  confirmLabel?: string;
 }) {
   const { pending } = useFormStatus();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const messageId = useId();
+
+  // Driven from state rather than called inline so Escape (which closes the dialog without
+  // going through our handlers) can't leave `open` out of step with what's on screen.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
 
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      onClick={(event) => {
-        if (!window.confirm(confirmMessage)) event.preventDefault();
-      }}
-      className="rounded-lg border border-[rgba(255,71,87,0.35)] px-3 py-1.5 text-xs font-bold text-whistle transition-colors hover:bg-[rgba(255,71,87,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {pending ? "Deleting…" : label}
-    </button>
+    <>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => setOpen(true)}
+        className="rounded-lg border border-[rgba(255,71,87,0.35)] px-3 py-1.5 text-xs font-bold text-whistle transition-colors hover:bg-[rgba(255,71,87,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Deleting…" : label}
+      </button>
+
+      {/*
+        The dialog fills the viewport and the visible card is a child of it.
+        
+        Sized to its content instead, clicks outside the card land on the `::backdrop`
+        pseudo-element and never reach the dialog's own click handler — so dismiss-on-outside-
+        click silently did nothing. Filling the viewport makes those clicks land on a real
+        element, and the panel ref below decides what counts as "outside".
+      */}
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        onClose={() => setOpen(false)}
+        onClick={(event) => {
+          if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+            setOpen(false);
+          }
+        }}
+        className="fixed inset-0 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center overflow-y-auto bg-transparent p-4 backdrop:bg-[rgba(5,8,7,0.72)] backdrop:backdrop-blur-sm"
+      >
+        <div
+          ref={panelRef}
+          className="w-full max-w-sm rounded-xl border border-line bg-charcoal text-floodlight shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]"
+        >
+          <div className="flex flex-col gap-3 p-5">
+            <h2 id={titleId} className="font-display text-lg font-normal uppercase tracking-wide">
+              Confirm delete
+            </h2>
+
+            <p id={messageId} className="text-[13px] leading-relaxed text-floodlight-dim">
+              {confirmMessage}
+            </p>
+
+            <div className="mt-1 flex justify-end gap-2">
+              <button
+                type="button"
+                // Deliberate: in a destructive dialog the non-destructive option should be
+                // the one holding focus, so a stray Enter cancels rather than deletes.
+                autoFocus
+                onClick={() => setOpen(false)}
+                className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-floodlight-dim transition-colors hover:border-floodlight-faint hover:bg-charcoal-2 hover:text-floodlight"
+              >
+                Cancel
+              </button>
+
+              {/* An ordinary submit for the enclosing form — this is what runs the action. */}
+              <button
+                type="submit"
+                onClick={() => setOpen(false)}
+                className="rounded-lg bg-whistle px-3 py-2 text-xs font-extrabold text-floodlight transition-colors hover:bg-[#ff6b78]"
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }
