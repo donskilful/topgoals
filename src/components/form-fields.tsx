@@ -274,7 +274,20 @@ export function DeleteButton({
             closeDialog();
           }
         }}
-        className="fixed inset-0 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center overflow-y-auto bg-transparent p-4 backdrop:bg-[rgba(5,8,7,0.72)] backdrop:backdrop-blur-sm"
+/**
+         * `open:flex`, never a bare `flex`.
+         *
+         * A closed dialog is hidden by the UA rule `dialog:not([open]) { display: none }`.
+         * An unconditional `flex` utility is an author-level `display` declaration, so it
+         * beats that rule and the dialog renders the moment the page loads — and stays on
+         * screen after `close()`, because closing only removes the `open` attribute and
+         * `display: flex` is still winning.
+         *
+         * Gating the display on `[open]` is what actually ties visibility to state. Note that
+         * `dialog.open` being false is *not* evidence the dialog is hidden: that was true
+         * throughout this bug, which is why it has to be verified against computed `display`.
+         */
+        className="fixed inset-0 m-0 hidden h-full max-h-none w-full max-w-none items-center justify-center overflow-y-auto bg-transparent p-4 backdrop:bg-[rgba(5,8,7,0.72)] backdrop:backdrop-blur-sm open:flex"
       >
         <div
           ref={panelRef}

@@ -427,6 +427,15 @@ submit and the Server Action wiring is untouched.
 Cancel holds focus on open — in a destructive dialog the safe option should be the one under a
 stray Enter.
 
+**Visibility is gated on `[open]`, never a bare `display` utility.** A closed dialog is hidden
+by the UA rule `dialog:not([open]) { display: none }`. An unconditional `flex` class is an
+author-level `display` declaration, so it beats that rule: the dialog then renders on page load
+and stays on screen after `close()`, because closing only removes the attribute. Hence
+`hidden … open:flex`.
+
+The trap worth remembering: **`dialog.open === false` is not evidence the dialog is hidden.**
+It was false throughout that bug. Assertions have to read computed `display`.
+
 **No mirrored React state.** The dialog element's own `open` is the single source of truth.
 Mirroring it in state and closing via an effect has a failure mode that strands the user: if
 the two ever disagree — a hot reload mid-edit, an `onClose` that didn't fire, a remount while
