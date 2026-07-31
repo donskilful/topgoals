@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { createHighlight, updateHighlight } from "@/lib/actions/highlights";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
@@ -36,6 +36,16 @@ export function HighlightForm({
   const v = (field: string, fallback?: string | number) =>
     state.values[field] ?? (fallback === undefined ? undefined : String(fallback));
 
+  /**
+   * Length is controlled so uploading a clip can fill it in.
+   *
+   * Still editable: Cloudinary doesn't always report a duration (images, and some
+   * URL-sourced uploads), and an editor may want to describe a trimmed section rather than
+   * the whole file.
+   */
+  const [duration, setDuration] = useState(v("duration", highlight?.duration) ?? "");
+  const [autoFilled, setAutoFilled] = useState(false);
+
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       {isEdit ? <input type="hidden" name="id" value={highlight!.id} /> : null}
@@ -51,32 +61,52 @@ export function HighlightForm({
         placeholder="Haaland's hat-trick vs Everton"
       />
 
-      <TextField
-        name="duration"
-        label="Length"
-        required
-        defaultValue={v("duration", highlight?.duration)}
-        error={state.fieldErrors.duration}
-        placeholder="2:14"
-        hint="Minutes and seconds, e.g. 2:14."
-      />
-
+      {/* Upload first: the clip fills in the length below. */}
       <MediaUpload
         name="video"
         label="Video clip"
         resourceType="video"
         initial={highlight?.video ?? null}
         error={state.fieldErrors.video}
-        hint="Up to 200MB. Cloudinary handles the streaming formats."
+        hint="Up to 200MB. Cloudinary handles the streaming formats, and reads the length."
+        onUploaded={(_media, meta) => {
+          if (meta.durationSeconds === undefined) return;
+
+          // Round up: a 133.4s clip is "2:14" to a viewer, not "2:13".
+          const total = Math.ceil(meta.durationSeconds);
+          const minutes = Math.floor(total / 60);
+          const seconds = total % 60;
+
+          setDuration(`${minutes}:${String(seconds).padStart(2, "0")}`);
+          setAutoFilled(true);
+        }}
+      />
+
+      <TextField
+        name="duration"
+        label="Length"
+        required
+        value={duration}
+        onChange={(event) => {
+          setDuration(event.target.value);
+          setAutoFilled(false);
+        }}
+        error={state.fieldErrors.duration}
+        placeholder="2:14"
+        hint={
+          autoFilled
+            ? "Read from the uploaded clip — edit it if you're featuring a shorter section."
+            : "Minutes and seconds, e.g. 2:14. Filled in automatically when you upload a clip."
+        }
       />
 
       <MediaUpload
         name="thumbnail"
-        label="Thumbnail"
+        label="Thumbnail override"
         resourceType="image"
         initial={highlight?.thumbnail ?? null}
         error={state.fieldErrors.thumbnail}
-        hint="Optional — shown before the clip plays."
+        hint="Optional. Leave empty and a frame from the clip is used automatically."
       />
 
       <TextField
@@ -86,6 +116,7 @@ export function HighlightForm({
         required
         defaultValue={v("publishedAt", highlight?.publishedAt ?? defaultPublishedAt)}
         error={state.fieldErrors.publishedAt}
+        hint="Defaults to now. Change it only to backdate or schedule a clip."
       />
 
       <div className="mt-2 flex items-center gap-3">

@@ -1,6 +1,7 @@
 import { dbConnect } from "@/lib/db";
 import { Highlight } from "@/lib/models/highlight";
 import { formatClipLength } from "@/lib/format";
+import { videoPosterUrl } from "@/lib/media";
 import { publicRead } from "@/lib/data/public-read";
 
 export type HighlightCard = {
@@ -22,7 +23,10 @@ export async function getHighlights(limit = 3): Promise<HighlightCard[]> {
       duration: formatClipLength(clip.durationSeconds),
       title: clip.title,
       videoUrl: clip.video?.secureUrl ?? null,
-      thumbnailUrl: clip.thumbnail?.secureUrl ?? null,
+      // An uploaded thumbnail wins, but one isn't needed: a frame from the clip itself is
+      // derived on the fly, so a highlight is never posterless just because nobody made
+      // a separate image for it.
+      thumbnailUrl: clip.thumbnail?.secureUrl ?? videoPosterUrl(clip.video?.secureUrl),
     }));
   });
 }
