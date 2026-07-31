@@ -23,12 +23,23 @@ export type TrendingTipCard = {
 
 export type SettledResult = { id: string; result: "W" | "L" };
 
-/** Tips that haven't kicked off yet, or are still unsettled. */
+/**
+ * Tips a reader can still act on: pending, and not yet kicked off.
+ *
+ * The kick-off filter is the important half. Without it this returned every pending tip
+ * regardless of age, so anything left unsettled sat under "Today's Picks" indefinitely — and
+ * since the card shows a time but no date, a week-old selection read as today's. Worse, a tip
+ * whose match has already started can't be backed at the quoted odds, so presenting it as a
+ * pick is misleading even when the data is fresh.
+ */
 export async function getTodaysTips(limit = 3): Promise<TipCard[]> {
   return publicRead("getTodaysTips", [], async () => {
     await dbConnect();
 
-    const tips = await Tip.find({ result: "pending" }).sort({ kickoffAt: 1 }).limit(limit).lean();
+    const tips = await Tip.find({ result: "pending", kickoffAt: { $gte: new Date() } })
+      .sort({ kickoffAt: 1 })
+      .limit(limit)
+      .lean();
 
     return tips.map((tip) => ({
       id: String(tip._id),
@@ -46,8 +57,9 @@ export async function getTrendingTips(limit = 3): Promise<TrendingTipCard[]> {
   return publicRead("getTrendingTips", [], async () => {
     await dbConnect();
 
-    // Ranked by confidence, since there's no click-through data to rank by yet.
-    const tips = await Tip.find({ result: "pending" })
+    // Ranked by confidence, since there's no click-through data to rank by yet. Same
+    // not-yet-kicked-off rule as getTodaysTips — a started match isn't a tip any more.
+    const tips = await Tip.find({ result: "pending", kickoffAt: { $gte: new Date() } })
       .sort({ confidence: -1, kickoffAt: 1 })
       .limit(limit)
       .lean();

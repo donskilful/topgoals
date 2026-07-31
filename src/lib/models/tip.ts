@@ -13,12 +13,50 @@ const tipSchema = new Schema(
     confidence: { type: Number, enum: TIP_CONFIDENCE_LEVELS, required: true },
     result: { type: String, enum: TIP_RESULTS, required: true, default: "pending" },
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+
+    /**
+     * The fixture this tip is on, once known.
+     *
+     * `fixture` above stays as the display string, but a reference to a real synced match is
+     * what makes automatic settlement possible — and what stops the track record depending on
+     * somebody remembering to grade every result by hand.
+     */
+    matchId: { type: Schema.Types.ObjectId, ref: "Match", default: null },
+
+    /** When the result was decided, and by what. */
+    settledAt: { type: Date, default: null },
+    settledBy: { type: String, enum: ["auto", "manual"], default: null },
+    /**
+     * Why it settled the way it did — "3 goals at full-time (2-1)" — or why it couldn't.
+     * Recorded so a surprising result in the public record can always be traced back to the
+     * scoreline that produced it, rather than being taken on trust.
+     */
+    settlementNote: { type: String, default: null },
+
+    /**
+     * Where the selection came from, when it wasn't ours.
+     *
+     * Stored for every ingested tip so each provider builds a verified record on our own
+     * settled results, instead of us relying on the win rate they advertise. Null on tips
+     * written in the CMS.
+     */
+    source: {
+      type: new Schema(
+        { name: { type: String, required: true }, url: { type: String, default: null } },
+        { _id: false },
+      ),
+      default: null,
+    },
   },
   { timestamps: true },
 );
 
 tipSchema.index({ kickoffAt: -1 });
 tipSchema.index({ result: 1, kickoffAt: -1 });
+// The settlement job's query: unsettled tips whose fixture has had time to finish.
+tipSchema.index({ result: 1, matchId: 1 });
+// Per-provider record aggregation.
+tipSchema.index({ "source.name": 1, result: 1 });
 
 export type TipDoc = InferSchemaType<typeof tipSchema>;
 
