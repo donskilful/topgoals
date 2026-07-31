@@ -412,6 +412,24 @@ pick an item up without prior context.
 
 Every push gets an entry here — what shipped and why, newest first.
 
+### 2026-07-31 — Highlights read their own length and poster frame
+
+Three fields on the highlight form that asked an editor for information the video already
+carries:
+
+- **Length is read from the clip.** Cloudinary returns a `duration` on the upload result, so
+  uploading fills the field in. Still editable — the API doesn't always report one, and an
+  editor may be featuring a trimmed section rather than the whole file.
+- **The thumbnail is derived from the video.** Cloudinary renders any video as an image if
+  you ask for an image extension, so a poster never needed uploading separately —
+  `so_auto` picks a representative frame rather than frame zero, which on football footage is
+  usually a blurry pan or blank pre-roll. The upload field stays as an override for when the
+  automatic frame isn't the one you want.
+- **Published already defaulted to now**; the field just never said so. It now does, along
+  with why you'd change it.
+
+The video upload moved above Length, since it's what fills it in.
+
 ### 2026-07-31 — News and transfer articles, still without an LLM
 
 Transfer and news articles are now written in plain JavaScript by extracting the facts from

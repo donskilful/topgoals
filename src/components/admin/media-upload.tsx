@@ -12,6 +12,12 @@ type MediaUploadProps = {
   error?: string;
   resourceType?: "image" | "video";
   initial?: Media | null;
+  /**
+   * Called after a successful upload with anything Cloudinary reported about the asset
+   * beyond its URL. Used by the highlight form to fill the length field from the video
+   * itself instead of asking an editor to time the clip by hand.
+   */
+  onUploaded?: (media: Media, meta: { durationSeconds?: number }) => void;
 };
 
 /**
@@ -26,6 +32,7 @@ export function MediaUpload({
   error,
   resourceType = "image",
   initial = null,
+  onUploaded,
 }: MediaUploadProps) {
   const [media, setMedia] = useState<Media | null>(initial);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -82,10 +89,26 @@ export function MediaUpload({
               }}
               onSuccess={(result) => {
                 const info = result.info;
-                if (info && typeof info !== "string") {
-                  setUploadError(null);
-                  setMedia({ secureUrl: info.secure_url, publicId: info.public_id });
-                }
+                if (!info || typeof info === "string") return;
+
+                setUploadError(null);
+                const uploaded = { secureUrl: info.secure_url, publicId: info.public_id };
+                setMedia(uploaded);
+
+                /**
+                 * Cloudinary returns `duration` (in seconds, fractional) for video assets.
+                 * It isn't in the widget's published result type, so it's read defensively
+                 * — and it's absent for images and for some URL-sourced uploads, in which
+                 * case the caller keeps whatever it had.
+                 */
+                const duration = (info as { duration?: unknown }).duration;
+
+                onUploaded?.(uploaded, {
+                  durationSeconds:
+                    typeof duration === "number" && Number.isFinite(duration) && duration > 0
+                      ? duration
+                      : undefined,
+                });
               }}
               onError={() => setUploadError("Upload failed. Check your connection and try again.")}
             >
