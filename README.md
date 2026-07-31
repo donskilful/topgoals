@@ -4,8 +4,8 @@ A fast, mobile-first football (soccer) hub — live scores, daily betting tips w
 tracked results, transfer news, sports news, and goals & highlights, all built to
 feel instant even on a poor connection.
 
-> **Status:** The CMS is complete, the public site runs on real data, live scores
-> update automatically, and match reports are generated without an LLM.
+> **Status:** The CMS is complete, the public site runs on real data, and scores, tables,
+> match reports and news/transfer articles all update automatically — no LLM anywhere.
 
 ## Why this stack
 
@@ -31,7 +31,7 @@ audience on mobile, often on weak connections.
 - **Auth:** Auth.js v5 (credentials + JWT sessions)
 - **Media:** Cloudinary, signed uploads straight from the browser
 - **Live scores & tables:** football-data.org, polled by Vercel Cron
-- **Automated content:** JS-generated match reports; attributed headline links from RSS
+- **Automated content:** JS-generated match reports and news/transfer articles, no LLM
 - **Planned:** Redis caching, PWA layer
 
 ## Design system
@@ -74,8 +74,9 @@ Then fill in `.env.local`:
    Enables automatic live scores. Optional — without it, scores are entered by hand.
 6. **`CRON_SECRET`** — any long random string (`openssl rand -base64 32`). Guards both
    cron endpoints so nobody else can trigger them.
-7. **`NEWS_AUTOMATION`** — set to `"on"` to enable generated match reports and the
-   headline list. Defaults to off. No API key needed; it's all plain JavaScript.
+7. **`NEWS_AUTOMATION`** — set to `"on"` to enable generated match reports, news and
+   transfer articles, and the headline list. Defaults to off. No API key needed; it's all
+   plain JavaScript.
 
 Seed the database with starter content and your admin account, then start the app:
 
@@ -199,17 +200,44 @@ goal margin, or 5+ goals — because with no scorers a routine 1-0 would be thre
 near-identical sentences. Everything else is covered by the daily round-up, grouped by
 competition.
 
+### News and transfer articles (also our own writing)
+
+Articles are written from the *facts* in the feeds. Each headline is parsed into structured
+data — who, which clubs, what happened, how certain it is — and the sentences are composed
+from that structure. No source phrasing reaches the composer; `extract.ts` throws quoted
+fragments away before returning.
+
+Same principle as the match reports. Facts aren't copyrightable, the words used to report
+them are, and "Chelsea signed Maxence Lacroix from Crystal Palace" is a fact anyone may
+state.
+
+**Certainty is never upgraded.** "Real Madrid *expected to make offer for* Rodri" is a
+report of an intention, not a transfer, so it publishes as *"Real Madrid have been linked
+with a move for Rodri … No deal has been confirmed by either club"* and credits the outlet
+that made the claim. Readers here place bets; the difference between a club being linked
+with a player and having signed one is money. Where a claim is unconfirmed, who is making
+it is itself a material fact, so it's stated.
+
+**Most headlines produce nothing, deliberately.** Q&As, pundit columns, features,
+explainers and anything ambiguous are skipped rather than guessed at, and stay as link-outs
+below. Expect a minority to become articles — a missed story costs nothing, a misread one
+publishes a false statement under our name. In testing, 4 distinct stories came from 23 feed
+items.
+
+Two guards worth knowing about, both added after they produced a falsehood in testing:
+
+- **Figures are read from the headline only, never the summary.** A Guardian summary covering
+  two transfers at once ("Lacroix joins Chelsea as John Stones seals Inter deal") caused
+  Stones' two-year contract to be attributed to Lacroix, who had signed for six years. A
+  headline makes one claim about one subject; a summary does not.
+- **League-position context comes only from tables the feed is actively maintaining.**
+  Reading any stored row produced "Chelsea currently sit 4th on 45 points" from leftover
+  seeded rows, before the season had started.
+
 ### Around the web (other people's headlines)
 
-News and transfer stories from **Sky Sports** and **Guardian Football** RSS appear as an
-attributed link list: headline, publisher, timestamp, link out. No summary text is
-stored and no body is generated.
-
-This is the honest shape without a language model. A feed gives us prose someone wrote,
-and the only way to transform prose into prose in plain JavaScript is to rearrange their
-words — which is both a derivative work and unpleasant to read. So we don't rewrite it
-at all; we point readers at the people who reported it. The list is visibly labelled,
-opens in a new tab, and sits below our own coverage so it can't be mistaken for it.
+Everything that isn't extractable still appears as an attributed link list: headline,
+publisher, timestamp, link out. No summary text is stored and no body is generated.
 
 Crawling the sites was considered and rejected: Sky's `robots.txt` disallows bots, and
 article prose and highlight video are licensed content.
@@ -307,12 +335,15 @@ src/
     automation-actor.ts              # the non-loginable identity automated writes are logged as
     feeds/rss.ts                      # reads Sky/Guardian RSS; football-only, filters non-stories
     feeds/cluster.ts                   # groups reports of the same event
-    reports/match-report.ts             # JS templates -> original match-report prose
+    news/extract.ts                     # headline -> structured facts, certainty preserved
+    news/compose.ts                      # facts -> original prose, hedges honoured
+    reports/match-report.ts               # JS templates -> original match-report prose
     reports/results-roundup.ts           # JS templates -> daily results round-up
     sync/matches.ts                       # score feed -> database upsert rules
     sync/standings.ts                      # league tables, with the season guard
     sync/reports.ts                        # finished matches -> published reports
     sync/headlines.ts                       # RSS -> attributed link list
+    sync/news-articles.ts                    # RSS facts -> published articles
     models/                         # Mongoose schemas
     schemas/                         # Zod validation
     actions/                          # 'use server' mutations
@@ -380,6 +411,41 @@ pick an item up without prior context.
 ## Progress log
 
 Every push gets an entry here — what shipped and why, newest first.
+
+### 2026-07-31 — News and transfer articles, still without an LLM
+
+Transfer and news articles are now written in plain JavaScript by extracting the facts from
+each headline and composing sentences from the structure — the same principle as the match
+reports, applied to feed items. No source phrasing survives extraction, so nothing is a
+paraphrase, and there's still no per-article cost.
+
+- **Certainty is never upgraded.** A headline reporting an intention publishes as a report,
+  credited to the outlet making it, with "No deal has been confirmed by either club" stated
+  outright. On a site with betting tips beside it, "linked with" and "has signed" are
+  different amounts of money.
+- **Reports of the same event merge.** Keyed on the extracted facts rather than headline
+  wording, so "Chelsea sign Lacroix from Palace" and "Maxence Lacroix joins Chelsea" become
+  one article crediting both outlets — taking the selling club from one and the fuller name
+  from the other.
+- **Most headlines produce nothing on purpose** — 4 stories from 23 items in testing. Q&As,
+  pundit columns, features and anything ambiguous stay as link-outs.
+
+Three falsehoods caught in testing before any of this shipped:
+
+- **A fabricated contract length.** A Guardian summary covering two transfers at once made
+  John Stones' two-year deal read as Lacroix's, who had actually signed for six years. The
+  two sources also disagreed on the fee (£51m vs £52m). Figures now come from the headline
+  only — one claim, one subject.
+- **A stale league position.** "Chelsea currently sit 4th on 45 points" was read off
+  leftover seeded rows for a season that hadn't started. Context now comes only from tables
+  the feed is actively maintaining.
+- **A junk capture becoming prose.** A loose pattern matched "Makhanya seals Rangers move
+  from MLS" first and captured "Rangers move" as the player; the guard then abandoned the
+  whole headline instead of trying the next pattern. Now a bad capture just means that
+  pattern misread it.
+
+Also fixed: my own composer guard used `\s{2,}` to catch doubled spaces, which also matched
+the `\n\n` between paragraphs and silently rejected every article the module produced.
 
 ### 2026-07-31 — "Around the Web" fixed on mobile and made the transfer entry point
 

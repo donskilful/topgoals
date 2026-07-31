@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncHeadlines } from "@/lib/sync/headlines";
 import { syncReports } from "@/lib/sync/reports";
+import { syncNewsArticles } from "@/lib/sync/news-articles";
 
 // Mongoose and the feed fetches both need the Node runtime.
 export const runtime = "nodejs";
@@ -14,11 +15,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /**
- * Refreshes the "around the web" headline list and publishes match reports.
+ * Refreshes the "around the web" headline list, publishes match reports, and publishes
+ * news/transfer articles written from the facts in the feeds.
  *
- * Both halves are plain JavaScript — no language model and no per-article cost. Reports
- * are generated from finished matches already in our database, so this makes no requests
- * to football-data.org either; the only outbound traffic is reading the two RSS feeds.
+ * All three are plain JavaScript — no language model and no per-article cost. Reports are
+ * generated from finished matches already in our database, so this makes no requests to
+ * football-data.org either; the only outbound traffic is reading the RSS feeds.
  *
  * Gates:
  *  - `CRON_SECRET` — stops a stranger who finds the URL from driving the job.
@@ -46,17 +48,23 @@ export async function GET(request: Request) {
     );
   }
 
-  // Run both independently: a feed outage shouldn't stop reports being written from data
-  // we already hold, and a report failure shouldn't stale the headline list.
-  const [headlines, reports] = await Promise.allSettled([syncHeadlines(), syncReports()]);
+  // Each runs independently: a feed outage shouldn't stop reports being written from data
+  // we already hold, and one failing half shouldn't stale the others.
+  const [headlines, reports, articles] = await Promise.allSettled([
+    syncHeadlines(),
+    syncReports(),
+    syncNewsArticles(),
+  ]);
 
   if (headlines.status === "rejected") console.error("Headline sync failed:", headlines.reason);
   if (reports.status === "rejected") console.error("Report sync failed:", reports.reason);
+  if (articles.status === "rejected") console.error("News article sync failed:", articles.reason);
 
   const body = {
-    ok: headlines.status === "fulfilled" || reports.status === "fulfilled",
+    ok: [headlines, reports, articles].some((r) => r.status === "fulfilled"),
     headlines: headlines.status === "fulfilled" ? headlines.value : null,
     reports: reports.status === "fulfilled" ? reports.value : null,
+    articles: articles.status === "fulfilled" ? articles.value : null,
   };
 
   console.log("Content sync:", body);
