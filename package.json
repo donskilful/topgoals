@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "sync:dev": "git fetch origin && git checkout dev && git merge --ff-only origin/main && git push origin dev",
     "seed": "tsx scripts/seed.ts",
     "news:dry-run": "tsx scripts/news-dry-run.ts"
   },

@@ -1,0 +1,41 @@
+name: Sync dev with main
+
+# Every merge into main leaves dev behind it. Rather than relying on someone
+# remembering to catch dev up — which is what let the two drift far enough apart
+# that shipped work looked unshipped — this does it automatically.
+on:
+  push:
+    branches: [main]
+
+# Serialise: two merges landing close together shouldn't race to move dev.
+concurrency:
+  group: sync-dev
+  cancel-in-progress: false
+
+jobs:
+  fast-forward:
+    name: Fast-forward dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: a fast-forward check needs the commits, not a shallow tip.
+          fetch-depth: 0
+
+      - name: Fast-forward dev to main
+        run: |
+          # A plain, non-force push. This is the whole safety argument: git rejects
+          # any push that isn't a fast-forward, so the operation physically cannot
+          # discard a commit. If dev holds work that main doesn't, the push simply
+          # fails and dev is left exactly as it was.
+          #
+          # Never add --force here. Doing so would turn a safe no-op into silent
+          # data loss on someone's in-progress branch.
+          if git push origin HEAD:refs/heads/dev; then
+            echo "dev fast-forwarded to $(git rev-parse --short HEAD)"
+          else
+            echo "::warning title=dev not fast-forwarded::dev has commits that are not on main, so it was left untouched. Open a PR from dev to main to bring them across."
+          fi
