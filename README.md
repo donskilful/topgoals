@@ -280,6 +280,44 @@ npm run news:dry-run             # live headlines + reports from real data
 npm run news:dry-run -- --samples # how each kind of result reads
 ```
 
+## Branching
+
+Work happens on `dev`; `main` is what ships. Two rules keep them from drifting:
+
+### Merge PRs from `dev`, don't squash them
+
+**Use a merge commit** (`gh pr merge <n> --merge`), not a squash.
+
+Squashing rewrites a PR into a brand-new commit on `main`, so the original `dev` commits
+never become ancestors of it. `git log main..dev` then lists them forever and GitHub reports
+`dev` as permanently "N commits ahead" — which is how a fully-shipped day's work came to look
+unshipped. Realigning after a squash needs a force-push, and a force-push on a shared branch
+is how commits actually do get lost.
+
+A merge commit keeps `dev` a true ancestor, so `dev` catches up with an ordinary
+fast-forward and nothing ever needs rewriting. The cost is a busier history on `main`, which
+is a fair trade for never reaching for `--force`.
+
+### `dev` catches up automatically
+
+`.github/workflows/sync-dev.yml` fast-forwards `dev` to `main` on every push to `main`.
+
+It uses a **plain, non-force push**, and that's the entire safety argument: git rejects any
+push that isn't a fast-forward, so the job physically cannot discard a commit. If `dev` holds
+work `main` doesn't have, the push just fails, the run logs a warning, and `dev` is left
+untouched. **Never add `--force` to that workflow** — it would convert a safe no-op into
+silent data loss on someone's in-progress branch.
+
+To catch a local `dev` up by hand:
+
+```bash
+npm run sync:dev
+```
+
+Also a `--ff-only` merge, so it refuses rather than rewrites if `dev` has diverged.
+
+## Roles
+
 ## Roles
 
 | Role | Can do |
