@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/lib/form-state";
 
@@ -222,26 +222,36 @@ export function DeleteButton({
   const { pending } = useFormStatus();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
   const titleId = useId();
   const messageId = useId();
 
-  // Driven from state rather than called inline so Escape (which closes the dialog without
-  // going through our handlers) can't leave `open` out of step with what's on screen.
-  useEffect(() => {
+  /**
+   * The dialog element's own `open` is the single source of truth — no mirrored React state.
+   *
+   * Mirroring it in state and closing via an effect on that state has a failure mode that
+   * strands the user: if the two ever disagree (a hot reload mid-edit, an `onClose` that
+   * didn't fire, a remount while open), then `setOpen(false)` is a no-op, no effect runs, and
+   * the modal can't be dismissed at all — it traps focus with no way out but a page reload.
+   *
+   * Calling `showModal()` / `close()` directly can't desync, because there's nothing to sync.
+   * Both calls are guarded: `showModal()` on an already-open dialog throws.
+   */
+  const openDialog = () => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
+    if (dialog && !dialog.open) dialog.showModal();
+  };
 
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+  const closeDialog = () => {
+    const dialog = dialogRef.current;
+    if (dialog?.open) dialog.close();
+  };
 
   return (
     <>
       <button
         type="button"
         disabled={pending}
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         className="rounded-lg border border-[rgba(255,71,87,0.35)] px-3 py-1.5 text-xs font-bold text-whistle transition-colors hover:bg-[rgba(255,71,87,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Deleting…" : label}
@@ -259,10 +269,9 @@ export function DeleteButton({
         ref={dialogRef}
         aria-labelledby={titleId}
         aria-describedby={messageId}
-        onClose={() => setOpen(false)}
         onClick={(event) => {
           if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-            setOpen(false);
+            closeDialog();
           }
         }}
         className="fixed inset-0 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center overflow-y-auto bg-transparent p-4 backdrop:bg-[rgba(5,8,7,0.72)] backdrop:backdrop-blur-sm"
@@ -286,7 +295,7 @@ export function DeleteButton({
                 // Deliberate: in a destructive dialog the non-destructive option should be
                 // the one holding focus, so a stray Enter cancels rather than deletes.
                 autoFocus
-                onClick={() => setOpen(false)}
+                onClick={closeDialog}
                 className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-floodlight-dim transition-colors hover:border-floodlight-faint hover:bg-charcoal-2 hover:text-floodlight"
               >
                 Cancel
@@ -295,7 +304,7 @@ export function DeleteButton({
               {/* An ordinary submit for the enclosing form — this is what runs the action. */}
               <button
                 type="submit"
-                onClick={() => setOpen(false)}
+                onClick={closeDialog}
                 className="rounded-lg bg-whistle px-3 py-2 text-xs font-extrabold text-floodlight transition-colors hover:bg-[#ff6b78]"
               >
                 {confirmLabel}
