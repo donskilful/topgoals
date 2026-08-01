@@ -1,11 +1,24 @@
 import Link from "next/link";
 import { getHighlights } from "@/lib/data/highlights";
+import { SectionMoreLink } from "@/components/section-more-link";
+
+/**
+ * Clips shown on the homepage.
+ *
+ * Three is the target: it's what balances the column against Today's Picks beside it, and two
+ * clips left the section looking half-finished. Fewer render only when fewer exist — the
+ * shortfall is a content gap for an editor to fill, and padding it with repeats would be worse
+ * than showing what there is.
+ */
+const HOMEPAGE_CLIPS = 3;
 
 export async function GoalsHighlights() {
-  const clips = await getHighlights();
+  const clips = await getHighlights(HOMEPAGE_CLIPS);
 
   return (
-    <div>
+    // Full-height flex column so the "All highlights" link can sit at the very bottom, level
+    // with the one under the tips beside it.
+    <div className="flex h-full flex-col">
       <div className="mb-[18px]">
         <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
           Goals &amp; Highlights
@@ -14,7 +27,7 @@ export async function GoalsHighlights() {
       </div>
 
       {clips.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
+        <div className="mb-3 rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
           <p className="text-sm text-floodlight-dim">No clips yet.</p>
         </div>
       ) : (
@@ -45,6 +58,8 @@ export async function GoalsHighlights() {
           </Link>
         ))
       )}
+
+      <SectionMoreLink href="/highlights">View more highlights →</SectionMoreLink>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTodaysTips } from "@/lib/data/tips";
 import { SITE_TIMEZONE_LABEL } from "@/lib/constants";
+import { SectionMoreLink } from "@/components/section-more-link";
 
 /**
  * Renders nothing when a tip has no confidence rating.
@@ -27,30 +28,32 @@ function ConfidenceDots({ level }: { level: number | null }) {
   );
 }
 
+/**
+ * Picks shown on the homepage.
+ *
+ * Six rather than three, because this column sits beside Goals & Highlights and three tip cards
+ * came up well short of three video thumbnails, leaving the row visibly lopsided. Six is roughly
+ * the height of that column; the rest are a click away on /tips, which lists every selection.
+ */
+const HOMEPAGE_TIPS = 6;
+
 export async function TodaysPicks() {
-  const tips = await getTodaysTips();
+  const tips = await getTodaysTips(HOMEPAGE_TIPS);
 
   return (
-    <div>
-      <div className="mb-[18px] flex items-baseline justify-between gap-3">
-        <div>
-          <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
-            Today&apos;s Picks
-          </h3>
-          <div className="text-[13px] text-floodlight-dim">
-            Published ahead of kick-off, all times {SITE_TIMEZONE_LABEL}
-          </div>
+    // Full-height flex column so the footer link lands level with the one beside it.
+    <div className="flex h-full flex-col">
+      <div className="mb-[18px]">
+        <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
+          Today&apos;s Picks
+        </h3>
+        <div className="text-[13px] text-floodlight-dim">
+          Published ahead of kick-off, all times {SITE_TIMEZONE_LABEL}
         </div>
-        <Link
-          href="/tips"
-          className="whitespace-nowrap text-[13px] font-bold text-pitch-bright hover:underline"
-        >
-          All tips →
-        </Link>
       </div>
 
       {tips.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
+        <div className="mb-3 rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
           <p className="text-sm text-floodlight-dim">
             No tips posted yet today. Check back before the first kick-off.
           </p>
@@ -89,6 +92,8 @@ export async function TodaysPicks() {
           </Link>
         ))
       )}
+
+      <SectionMoreLink href="/tips">View all tips →</SectionMoreLink>
     </div>
   );
 }
