@@ -12,6 +12,14 @@
     {
       "path": "/api/cron/news",
       "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/tip-results",
+      "schedule": "10 * * * *"
+    },
+    {
+      "path": "/api/cron/provider-tips",
+      "schedule": "30 6,15 * * *"
     }
   ]
 }

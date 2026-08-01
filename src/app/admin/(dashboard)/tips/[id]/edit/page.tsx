@@ -27,8 +27,8 @@ export default async function EditTipPage({ params }: { params: Promise<{ id: st
           competition: tip.competition,
           fixture: tip.fixture,
           pick: tip.pick,
-          odds: tip.odds,
-          confidence: tip.confidence,
+          odds: tip.odds ?? null,
+          confidence: tip.confidence ?? null,
           kickoffAt: toDateTimeLocal(tip.kickoffAt),
           result: tip.result,
         }}

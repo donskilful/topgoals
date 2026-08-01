@@ -25,7 +25,7 @@ export async function TrendingTips() {
               ⚽ {tip.pick}
             </div>
           </div>
-          <div className="font-mono text-[13px] font-bold">{tip.odds}</div>
+          <div className="font-mono text-[13px] font-bold">{tip.odds ?? "—"}</div>
         </Link>
       ))}
     </div>

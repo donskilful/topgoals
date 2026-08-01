@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "sync:dev": "git fetch origin && git checkout dev && git merge --ff-only origin/main && git push origin dev",
     "seed": "tsx scripts/seed.ts",
-    "news:dry-run": "tsx scripts/news-dry-run.ts"
+    "news:dry-run": "tsx scripts/news-dry-run.ts",
+    "test:settlement": "tsx scripts/test-settlement.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

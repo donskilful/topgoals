@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { getTodaysTips } from "@/lib/data/tips";
 import { SITE_TIMEZONE_LABEL } from "@/lib/constants";
+import { SectionMoreLink } from "@/components/section-more-link";
 
-function ConfidenceDots({ level }: { level: number }) {
+/**
+ * Renders nothing when a tip has no confidence rating.
+ *
+ * Ingested provider picks aren't rated by us, and four empty dots would read as "rated zero"
+ * — a judgement we never made.
+ */
+function ConfidenceDots({ level }: { level: number | null }) {
+  if (level === null) return null;
+
   return (
     <div
       className="mt-1.5 flex justify-end gap-0.5"
@@ -19,41 +28,52 @@ function ConfidenceDots({ level }: { level: number }) {
   );
 }
 
+/**
+ * Picks shown on the homepage.
+ *
+ * Chosen to sit just under the natural height of the three clips beside it, so Goals &
+ * Highlights is normally what sets the row height and these cards stretch to meet it. Five keeps
+ * that true at the widths the two-column layout applies to; the rest are one click away on
+ * /tips, which lists every selection.
+ */
+const HOMEPAGE_TIPS = 5;
+
 export async function TodaysPicks() {
-  const tips = await getTodaysTips();
+  const tips = await getTodaysTips(HOMEPAGE_TIPS);
 
   return (
-    <div>
-      <div className="mb-[18px] flex items-baseline justify-between gap-3">
-        <div>
-          <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
-            Today&apos;s Picks
-          </h3>
-          <div className="text-[13px] text-floodlight-dim">
-            Published ahead of kick-off, all times {SITE_TIMEZONE_LABEL}
-          </div>
+    // Full-height flex column so the footer link lands level with the one beside it.
+    <div className="flex h-full flex-col">
+      <div className="mb-[18px]">
+        <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
+          Today&apos;s Picks
+        </h3>
+        <div className="text-[13px] text-floodlight-dim">
+          Published ahead of kick-off, all times {SITE_TIMEZONE_LABEL}
         </div>
-        <Link
-          href="/tips"
-          className="whitespace-nowrap text-[13px] font-bold text-pitch-bright hover:underline"
-        >
-          All tips →
-        </Link>
       </div>
 
-      {tips.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
-          <p className="text-sm text-floodlight-dim">
-            No tips posted yet today. Check back before the first kick-off.
-          </p>
-        </div>
-      ) : (
-        tips.map((tip) => (
-          <Link
-            key={tip.id}
-            href="/tips"
-            className="mb-3 grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2.5 rounded-xl border border-line bg-charcoal p-4 transition-all hover:-translate-y-0.5 hover:border-[rgba(245,185,66,0.3)] hover:shadow-[0_8px_20px_-12px_rgba(245,185,66,0.35)]"
-          >
+      {/*
+        Same flex track as the clips column beside it: the cards divide up whatever height this
+        column is given. Grid already forces the two columns to equal height, but that alone just
+        left one of them padded with dead space at the bottom — stretching the cards means both
+        sides stay visually full whichever one happens to be taller. From `md` up only: below it
+        the columns stack, so there is no shared height to fill and cards keep their own size.
+      */}
+      <div className="mb-3 flex flex-1 flex-col gap-3">
+        {tips.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
+            <p className="text-sm text-floodlight-dim">
+              No tips posted yet today. Check back before the first kick-off.
+            </p>
+          </div>
+        ) : (
+          tips.map((tip) => (
+            <Link
+              key={tip.id}
+              href="/tips"
+              className="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2.5 rounded-xl border border-line bg-charcoal p-4 transition-all hover:-translate-y-0.5 hover:border-[rgba(245,185,66,0.3)] hover:shadow-[0_8px_20px_-12px_rgba(245,185,66,0.35)] md:flex-1"
+            >
             <div>
               <div className="mb-1 text-[11px] uppercase tracking-wide text-floodlight-faint">
                 {tip.competition} · {tip.kickoff}
@@ -62,17 +82,28 @@ export async function TodaysPicks() {
               <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[rgba(245,185,66,0.12)] px-2.5 py-[5px] text-xs font-bold text-torch">
                 ⚽ {tip.pick}
               </div>
+              {/* Credited when the selection isn't ours. A reader deciding whether to back a pick
+                  is entitled to know whose opinion it actually is. */}
+              {tip.source ? (
+                <div className="mt-1.5 text-[10px] text-floodlight-faint">
+                  Selection via {tip.source.name}
+                </div>
+              ) : null}
             </div>
             <div className="text-right font-mono text-[15px] font-bold">
-              {tip.odds}
+              {/* An em dash, not a plausible-looking price, when the source published none. */}
+              {tip.odds ?? "—"}
               <span className="block font-body text-[10px] font-semibold uppercase tracking-wide text-floodlight-faint">
                 Odds
               </span>
               <ConfidenceDots level={tip.confidence} />
             </div>
-          </Link>
-        ))
-      )}
+            </Link>
+          ))
+        )}
+      </div>
+
+      <SectionMoreLink href="/tips">View all tips →</SectionMoreLink>
     </div>
   );
 }

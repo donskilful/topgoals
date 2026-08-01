@@ -46,7 +46,23 @@ const matchSchema = new Schema(
   { timestamps: true },
 );
 
-matchSchema.index({ externalId: 1 }, { unique: true, sparse: true });
+/**
+ * Unique only for matches that actually came from the feed.
+ *
+ * `sparse` was the obvious choice here and it is the wrong one: a sparse index skips documents
+ * where the field is *missing*, but `externalId` defaults to `null`, so every hand-added match
+ * stores an explicit null and they all collide with each other. The effect was that the CMS
+ * could hold exactly one manually-created fixture — the second save failed with a duplicate key
+ * on `externalId: null` — which quietly broke the one workflow that covers the competitions the
+ * free tier doesn't carry.
+ *
+ * A partial index on "is a string" is what was actually meant: feed matches stay de-duplicated
+ * across syncs, hand-added ones are ignored by the constraint entirely.
+ */
+matchSchema.index(
+  { externalId: 1 },
+  { unique: true, partialFilterExpression: { externalId: { $type: "string" } } },
+);
 
 matchSchema.index({ kickoffAt: 1 });
 matchSchema.index({ status: 1, kickoffAt: 1 });
