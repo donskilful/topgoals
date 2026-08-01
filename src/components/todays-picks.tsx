@@ -31,11 +31,12 @@ function ConfidenceDots({ level }: { level: number | null }) {
 /**
  * Picks shown on the homepage.
  *
- * Six rather than three, because this column sits beside Goals & Highlights and three tip cards
- * came up well short of three video thumbnails, leaving the row visibly lopsided. Six is roughly
- * the height of that column; the rest are a click away on /tips, which lists every selection.
+ * Chosen to sit just under the natural height of the three clips beside it, so Goals &
+ * Highlights is normally what sets the row height and these cards stretch to meet it. Five keeps
+ * that true at the widths the two-column layout applies to; the rest are one click away on
+ * /tips, which lists every selection.
  */
-const HOMEPAGE_TIPS = 6;
+const HOMEPAGE_TIPS = 5;
 
 export async function TodaysPicks() {
   const tips = await getTodaysTips(HOMEPAGE_TIPS);
@@ -52,19 +53,27 @@ export async function TodaysPicks() {
         </div>
       </div>
 
-      {tips.length === 0 ? (
-        <div className="mb-3 rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
-          <p className="text-sm text-floodlight-dim">
-            No tips posted yet today. Check back before the first kick-off.
-          </p>
-        </div>
-      ) : (
-        tips.map((tip) => (
-          <Link
-            key={tip.id}
-            href="/tips"
-            className="mb-3 grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2.5 rounded-xl border border-line bg-charcoal p-4 transition-all hover:-translate-y-0.5 hover:border-[rgba(245,185,66,0.3)] hover:shadow-[0_8px_20px_-12px_rgba(245,185,66,0.35)]"
-          >
+      {/*
+        Same flex track as the clips column beside it: the cards divide up whatever height this
+        column is given. Grid already forces the two columns to equal height, but that alone just
+        left one of them padded with dead space at the bottom — stretching the cards means both
+        sides stay visually full whichever one happens to be taller. From `md` up only: below it
+        the columns stack, so there is no shared height to fill and cards keep their own size.
+      */}
+      <div className="mb-3 flex flex-1 flex-col gap-3">
+        {tips.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
+            <p className="text-sm text-floodlight-dim">
+              No tips posted yet today. Check back before the first kick-off.
+            </p>
+          </div>
+        ) : (
+          tips.map((tip) => (
+            <Link
+              key={tip.id}
+              href="/tips"
+              className="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2.5 rounded-xl border border-line bg-charcoal p-4 transition-all hover:-translate-y-0.5 hover:border-[rgba(245,185,66,0.3)] hover:shadow-[0_8px_20px_-12px_rgba(245,185,66,0.35)] md:flex-1"
+            >
             <div>
               <div className="mb-1 text-[11px] uppercase tracking-wide text-floodlight-faint">
                 {tip.competition} · {tip.kickoff}
@@ -89,9 +98,10 @@ export async function TodaysPicks() {
               </span>
               <ConfidenceDots level={tip.confidence} />
             </div>
-          </Link>
-        ))
-      )}
+            </Link>
+          ))
+        )}
+      </div>
 
       <SectionMoreLink href="/tips">View all tips →</SectionMoreLink>
     </div>
