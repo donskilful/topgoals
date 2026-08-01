@@ -18,6 +18,43 @@ import { publicRead } from "@/lib/data/public-read";
 const PUBLISHED = { published: { $ne: false } } as const;
 
 /**
+ * How many extra rows to read before thinning to one per fixture.
+ *
+ * Four is comfortably above the number of markets a provider publishes on a single match
+ * (typically three: a result, a both-teams-to-score variant and a correct score), so the short
+ * lists below still fill even when the earliest fixtures are heavily tipped.
+ */
+const OVERSAMPLE = 4;
+
+/**
+ * Keeps the first tip on each fixture, up to `limit`.
+ *
+ * The short lists on the homepage — Today's Picks, Trending Tips — took the first few tips by
+ * kick-off, which was fine when every tip was hand-written but stopped being fine once picks
+ * were ingested: a provider posts several markets on the same match, so all three cards showed
+ * the same fixture back to back, reading like a bug and wasting the slot. Callers wanting every
+ * selection on a match use `getAllTips`, which is unfiltered.
+ *
+ * Deliberately keeps the *first* rather than picking a "best" market — the caller has already
+ * sorted by what it cares about, and second-guessing that here would silently override it.
+ */
+function oncePerFixture<T extends { fixture: string }>(tips: T[], limit: number): T[] {
+  const seen = new Set<string>();
+  const chosen: T[] = [];
+
+  for (const tip of tips) {
+    if (seen.has(tip.fixture)) continue;
+
+    seen.add(tip.fixture);
+    chosen.push(tip);
+
+    if (chosen.length === limit) break;
+  }
+
+  return chosen;
+}
+
+/**
  * Odds and confidence are nullable throughout.
  *
  * A tip ingested from a provider has neither — the provider publishes a selection and nothing
@@ -59,10 +96,13 @@ export async function getTodaysTips(limit = 3): Promise<TipCard[]> {
   return publicRead("getTodaysTips", [], async () => {
     await dbConnect();
 
-    const tips = await Tip.find({ ...PUBLISHED, result: "pending", kickoffAt: { $gte: new Date() } })
-      .sort({ kickoffAt: 1 })
-      .limit(limit)
-      .lean();
+    const tips = oncePerFixture(
+      await Tip.find({ ...PUBLISHED, result: "pending", kickoffAt: { $gte: new Date() } })
+        .sort({ kickoffAt: 1 })
+        .limit(limit * OVERSAMPLE)
+        .lean(),
+      limit,
+    );
 
     return tips.map((tip) => ({
       id: String(tip._id),
@@ -83,10 +123,13 @@ export async function getTrendingTips(limit = 3): Promise<TrendingTipCard[]> {
 
     // Ranked by confidence, since there's no click-through data to rank by yet. Same
     // not-yet-kicked-off rule as getTodaysTips — a started match isn't a tip any more.
-    const tips = await Tip.find({ ...PUBLISHED, result: "pending", kickoffAt: { $gte: new Date() } })
-      .sort({ confidence: -1, kickoffAt: 1 })
-      .limit(limit)
-      .lean();
+    const tips = oncePerFixture(
+      await Tip.find({ ...PUBLISHED, result: "pending", kickoffAt: { $gte: new Date() } })
+        .sort({ confidence: -1, kickoffAt: 1 })
+        .limit(limit * OVERSAMPLE)
+        .lean(),
+      limit,
+    );
 
     return tips.map((tip) => ({
       id: String(tip._id),

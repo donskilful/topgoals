@@ -76,6 +76,26 @@ export default async function TipsPage() {
                   <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[rgba(245,185,66,0.12)] px-2.5 py-[5px] text-xs font-bold text-torch">
                     ⚽ {tip.pick}
                   </div>
+                  {/* Credited wherever a tip is shown, not just on the homepage. A reader
+                      deciding whether to back a selection is entitled to know whose opinion
+                      it is, and this is the page they come to in order to decide. */}
+                  {tip.source ? (
+                    <div className="mt-1.5 text-[10px] text-floodlight-faint">
+                      Selection via{" "}
+                      {tip.source.url ? (
+                        <a
+                          href={tip.source.url}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="underline hover:text-floodlight-dim"
+                        >
+                          {tip.source.name}
+                        </a>
+                      ) : (
+                        tip.source.name
+                      )}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-[15px] font-bold">{tip.odds ?? "—"}</p>
