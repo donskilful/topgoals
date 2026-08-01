@@ -25,6 +25,24 @@ import { isFootballDataConfigured } from "@/lib/football-data";
  * English at render time, which is a lot of machinery to avoid maintaining five short strings.
  */
 
+/**
+ * Whether these schedules are actually running.
+ *
+ * **False, because the deployment is on Vercel's Hobby plan, which only permits daily crons.**
+ * Every schedule below runs more often than that, so `vercel.json` declares no crons at all and
+ * Vercel deploys nothing to run them. The intended schedules are still recorded on each job —
+ * they're the design, and they're what gets restored — but nothing fires them today.
+ *
+ * Declared as a constant rather than detected, because there is no API that reports the account
+ * plan and a wrong guess here would be the worst outcome: the CMS would tell an editor a job
+ * refreshes itself every five minutes when nothing refreshes it at all, and stale data would go
+ * unnoticed for exactly as long as they believed it.
+ *
+ * To turn scheduling back on: upgrade the Vercel account to Pro, restore the `crons` array in
+ * `vercel.json` (one entry per job below, using its `cron` expression), and set this to true.
+ */
+export const SCHEDULING_ENABLED = false;
+
 export type JobResult = {
   ok: boolean;
   /** One line for the dashboard and the run log. */

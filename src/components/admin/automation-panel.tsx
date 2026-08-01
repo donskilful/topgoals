@@ -1,4 +1,4 @@
-import { AUTOMATION_JOBS } from "@/lib/jobs";
+import { AUTOMATION_JOBS, SCHEDULING_ENABLED } from "@/lib/jobs";
 import { getLastRuns } from "@/lib/sync/run-job";
 import { dateTimeFormatter, relativeTime } from "@/lib/format";
 import { JobRow } from "@/components/admin/job-row";
@@ -26,10 +26,29 @@ export async function AutomationPanel() {
     <section className="mt-8 rounded-xl border border-line bg-charcoal p-4">
       <h2 className="font-display text-lg uppercase tracking-wide">Automation</h2>
       <p className="mt-1 mb-4 max-w-2xl text-[12px] leading-relaxed text-floodlight-dim">
-        These run on a schedule without anyone doing anything. Use{" "}
-        <span className="font-bold text-floodlight">Update</span> to run one now — it runs exactly
-        what the schedule runs, and the result is recorded either way.
+        {SCHEDULING_ENABLED
+          ? "These run on a schedule without anyone doing anything. "
+          : "These are designed to run on a schedule. "}
+        Use <span className="font-bold text-floodlight">Update</span> to run one now — it runs
+        exactly what the schedule runs, and the result is recorded either way.
       </p>
+
+      {/*
+        Said plainly rather than left to be discovered. The schedule on each row below is the
+        intended one, and while nothing is firing it, a row reading "Every 5 minutes" with a
+        last-run three days ago would look like a broken job rather than a plan limit.
+      */}
+      {!SCHEDULING_ENABLED ? (
+        <p
+          role="status"
+          className="mb-4 rounded-lg border border-[rgba(255,71,87,0.3)] bg-[rgba(255,71,87,0.08)] px-3 py-2 text-[12px] leading-relaxed text-whistle"
+        >
+          <b>Nothing is running on a schedule.</b> Vercel&apos;s Hobby plan only allows daily
+          crons, and every job here runs more often than that, so no schedules are deployed. The
+          times below are what they are meant to run at. Until the account is on Pro, everything
+          updates only when someone presses Update.
+        </p>
+      ) : null}
 
       {/* Named rather than implied: two of the five jobs do nothing at all while this is off,
           and their rows would otherwise look like unexplained silence. */}

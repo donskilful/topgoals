@@ -68,7 +68,7 @@ export function JobRow({ job, lastRun }: JobRowProps) {
       </div>
 
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-[12px] sm:grid-cols-[auto_1fr]">
-        <dt className="font-semibold text-floodlight-faint">Runs</dt>
+        <dt className="font-semibold text-floodlight-faint">Meant to run</dt>
         <dd className="text-floodlight-dim">
           {job.schedule} <span className="font-mono text-floodlight-faint">({job.cron})</span>
           {job.requires ? (
