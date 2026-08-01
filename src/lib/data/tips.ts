@@ -4,31 +4,105 @@ import { formatKickoffTime } from "@/lib/format";
 import type { TipConfidence } from "@/lib/constants";
 import { publicRead } from "@/lib/data/public-read";
 
+/**
+ * Applied to every public read on this module.
+ *
+ * Tips ingested from a provider are stored unpublished until that provider has built a verified
+ * record on results we settled ourselves, so this filter is what keeps unproven scraped picks off
+ * the site. It also keeps the published win rate honest in the other direction: the rate describes
+ * the tips we actually showed readers, not a wider pool they never saw.
+ *
+ * `$ne: false` rather than `true`, so tips created before this field existed still read as
+ * published — which they were.
+ */
+const PUBLISHED = { published: { $ne: false } } as const;
+
+/**
+ * How many extra rows to read before thinning to one per fixture.
+ *
+ * Four is comfortably above the number of markets a provider publishes on a single match
+ * (typically three: a result, a both-teams-to-score variant and a correct score), so the short
+ * lists below still fill even when the earliest fixtures are heavily tipped.
+ */
+const OVERSAMPLE = 4;
+
+/**
+ * Keeps the first tip on each fixture, up to `limit`.
+ *
+ * The short lists on the homepage — Today's Picks, Trending Tips — took the first few tips by
+ * kick-off, which was fine when every tip was hand-written but stopped being fine once picks
+ * were ingested: a provider posts several markets on the same match, so all three cards showed
+ * the same fixture back to back, reading like a bug and wasting the slot. Callers wanting every
+ * selection on a match use `getAllTips`, which is unfiltered.
+ *
+ * Deliberately keeps the *first* rather than picking a "best" market — the caller has already
+ * sorted by what it cares about, and second-guessing that here would silently override it.
+ */
+function oncePerFixture<T extends { fixture: string }>(tips: T[], limit: number): T[] {
+  const seen = new Set<string>();
+  const chosen: T[] = [];
+
+  for (const tip of tips) {
+    if (seen.has(tip.fixture)) continue;
+
+    seen.add(tip.fixture);
+    chosen.push(tip);
+
+    if (chosen.length === limit) break;
+  }
+
+  return chosen;
+}
+
+/**
+ * Odds and confidence are nullable throughout.
+ *
+ * A tip ingested from a provider has neither — the provider publishes a selection and nothing
+ * else. Rather than fill the gap with a plausible number, the absence is carried all the way to
+ * the UI and shown as "—". See the `odds` field on the Tip model for why inventing one would be
+ * worse than showing nothing.
+ */
 export type TipCard = {
   id: string;
   competition: string;
   kickoff: string;
   fixture: string;
   pick: string;
-  odds: string;
-  confidence: TipConfidence;
+  odds: string | null;
+  confidence: TipConfidence | null;
+  /** Attribution when the selection came from a provider rather than from us. */
+  source: { name: string; url: string | null } | null;
 };
 
 export type TrendingTipCard = {
   id: string;
   fixture: string;
   pick: string;
-  odds: string;
+  odds: string | null;
 };
 
 export type SettledResult = { id: string; result: "W" | "L" };
 
-/** Tips that haven't kicked off yet, or are still unsettled. */
+/**
+ * Tips a reader can still act on: pending, and not yet kicked off.
+ *
+ * The kick-off filter is the important half. Without it this returned every pending tip
+ * regardless of age, so anything left unsettled sat under "Today's Picks" indefinitely — and
+ * since the card shows a time but no date, a week-old selection read as today's. Worse, a tip
+ * whose match has already started can't be backed at the quoted odds, so presenting it as a
+ * pick is misleading even when the data is fresh.
+ */
 export async function getTodaysTips(limit = 3): Promise<TipCard[]> {
   return publicRead("getTodaysTips", [], async () => {
     await dbConnect();
 
-    const tips = await Tip.find({ result: "pending" }).sort({ kickoffAt: 1 }).limit(limit).lean();
+    const tips = oncePerFixture(
+      await Tip.find({ ...PUBLISHED, result: "pending", kickoffAt: { $gte: new Date() } })
+        .sort({ kickoffAt: 1 })
+        .limit(limit * OVERSAMPLE)
+        .lean(),
+      limit,
+    );
 
     return tips.map((tip) => ({
       id: String(tip._id),
@@ -36,8 +110,9 @@ export async function getTodaysTips(limit = 3): Promise<TipCard[]> {
       kickoff: formatKickoffTime(tip.kickoffAt),
       fixture: tip.fixture,
       pick: tip.pick,
-      odds: tip.odds,
-      confidence: tip.confidence as TipConfidence,
+      odds: tip.odds ?? null,
+      confidence: (tip.confidence as TipConfidence | null) ?? null,
+      source: tip.source ? { name: tip.source.name, url: tip.source.url ?? null } : null,
     }));
   });
 }
@@ -46,17 +121,21 @@ export async function getTrendingTips(limit = 3): Promise<TrendingTipCard[]> {
   return publicRead("getTrendingTips", [], async () => {
     await dbConnect();
 
-    // Ranked by confidence, since there's no click-through data to rank by yet.
-    const tips = await Tip.find({ result: "pending" })
-      .sort({ confidence: -1, kickoffAt: 1 })
-      .limit(limit)
-      .lean();
+    // Ranked by confidence, since there's no click-through data to rank by yet. Same
+    // not-yet-kicked-off rule as getTodaysTips — a started match isn't a tip any more.
+    const tips = oncePerFixture(
+      await Tip.find({ ...PUBLISHED, result: "pending", kickoffAt: { $gte: new Date() } })
+        .sort({ confidence: -1, kickoffAt: 1 })
+        .limit(limit * OVERSAMPLE)
+        .lean(),
+      limit,
+    );
 
     return tips.map((tip) => ({
       id: String(tip._id),
       fixture: tip.fixture,
       pick: tip.pick,
-      odds: tip.odds,
+      odds: tip.odds ?? null,
     }));
   });
 }
@@ -81,7 +160,7 @@ export async function getRecentResults(
     const now = Date.now();
     const startOfToday = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
 
-    const settled = { result: { $in: ["won", "lost"] } } as const;
+    const settled = { ...PUBLISHED, result: { $in: ["won", "lost"] } } as const;
 
     const yesterday = await Tip.find({
       ...settled,
@@ -129,6 +208,12 @@ export type TipStats = { winRate: string; units: string; period: string; hasData
  * Profit is in units staked: a winner returns (odds - 1), a loser costs 1, and a
  * void is a push. Odds are stored as strings to preserve their display form, so
  * they're converted to a double inside the pipeline.
+ *
+ * Tips with no recorded price are counted in the win rate but left out of the profit entirely,
+ * and the caption says how many the profit covers when the two differ. A selection scraped from
+ * a provider has no odds, and there's no honest way to include it: assuming a price would invent
+ * a return, while treating it as 1.00 would count a winner as breaking even and drag the figure
+ * down. Win rate needs no price, so it uses everything.
  */
 export async function getTipStats(): Promise<TipStats> {
   // Same shape the "no settled tips yet" case already uses, so the card renders its
@@ -145,26 +230,51 @@ export async function getTipStats(): Promise<TipStats> {
 
     const since = new Date(Date.now() - 30 * DAY_MS);
 
+    // A price we can actually stake at: recorded, and a number above 1.
+    const priced = {
+      $and: [
+        { $ne: ["$odds", null] },
+        { $gt: [{ $convert: { input: "$odds", to: "double", onError: 0, onNull: 0 } }, 1] },
+      ],
+    };
+
     const [summary] = await Tip.aggregate<{
       won: number;
       lost: number;
       profit: number;
+      pricedDecided: number;
     }>([
-      { $match: { result: { $in: ["won", "lost", "void"] }, kickoffAt: { $gte: since } } },
+      {
+        $match: {
+          ...PUBLISHED,
+          result: { $in: ["won", "lost", "void"] },
+          kickoffAt: { $gte: since },
+        },
+      },
       {
         $group: {
           _id: null,
           won: { $sum: { $cond: [{ $eq: ["$result", "won"] }, 1, 0] } },
           lost: { $sum: { $cond: [{ $eq: ["$result", "lost"] }, 1, 0] } },
+          pricedDecided: {
+            $sum: {
+              $cond: [{ $and: [priced, { $in: ["$result", ["won", "lost"]] }] }, 1, 0],
+            },
+          },
           profit: {
             $sum: {
               $switch: {
                 branches: [
                   {
-                    case: { $eq: ["$result", "won"] },
-                    then: { $subtract: [{ $toDouble: "$odds" }, 1] },
+                    case: { $and: [{ $eq: ["$result", "won"] }, priced] },
+                    then: {
+                      $subtract: [
+                        { $convert: { input: "$odds", to: "double", onError: 0, onNull: 0 } },
+                        1,
+                      ],
+                    },
                   },
-                  { case: { $eq: ["$result", "lost"] }, then: -1 },
+                  { case: { $and: [{ $eq: ["$result", "lost"] }, priced] }, then: -1 },
                 ],
                 default: 0,
               },
@@ -182,12 +292,23 @@ export async function getTipStats(): Promise<TipStats> {
       return { winRate: "—", units: "no settled tips yet", period: "Last 30 days", hasData: false };
     }
 
-    const profit = summary?.profit ?? 0;
-    const rounded = Math.round(profit * 10) / 10;
+    const winRate = `${Math.round((won / decided) * 100)}%`;
+    const pricedDecided = summary?.pricedDecided ?? 0;
+
+    if (pricedDecided === 0) {
+      // Win rate is real; there is simply no price on any of it to compute a return from.
+      return { winRate, units: "no priced tips yet", period: "Last 30 days", hasData: true };
+    }
+
+    const rounded = Math.round((summary?.profit ?? 0) * 10) / 10;
+    const units = `${rounded >= 0 ? "+" : ""}${rounded.toFixed(1)} units`;
 
     return {
-      winRate: `${Math.round((won / decided) * 100)}%`,
-      units: `${rounded >= 0 ? "+" : ""}${rounded.toFixed(1)} units`,
+      winRate,
+      // Says what the profit covers whenever it isn't the whole sample, so the two numbers on
+      // the card can't be read as describing the same set of tips when they don't.
+      units:
+        pricedDecided < decided ? `${units} from ${pricedDecided} priced tips` : units,
       period: "Last 30 days",
       hasData: true,
     };
@@ -199,7 +320,7 @@ export async function getAllTips(limit = 50) {
   return publicRead("getAllTips", [], async () => {
     await dbConnect();
 
-    const tips = await Tip.find().sort({ kickoffAt: -1 }).limit(limit).lean();
+    const tips = await Tip.find(PUBLISHED).sort({ kickoffAt: -1 }).limit(limit).lean();
 
     return tips.map((tip) => ({
       id: String(tip._id),
@@ -208,9 +329,10 @@ export async function getAllTips(limit = 50) {
       kickoffAt: tip.kickoffAt.toISOString(),
       fixture: tip.fixture,
       pick: tip.pick,
-      odds: tip.odds,
-      confidence: tip.confidence as TipConfidence,
+      odds: tip.odds ?? null,
+      confidence: (tip.confidence as TipConfidence | null) ?? null,
       result: tip.result,
+      source: tip.source ? { name: tip.source.name, url: tip.source.url ?? null } : null,
     }));
   });
 }

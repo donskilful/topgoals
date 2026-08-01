@@ -1,11 +1,24 @@
 import Link from "next/link";
 import { getHighlights } from "@/lib/data/highlights";
+import { SectionMoreLink } from "@/components/section-more-link";
+
+/**
+ * Hard cap on clips shown on the homepage.
+ *
+ * Three, never more: this column is half of a two-column row, and a fourth clip would push the
+ * row taller than the picks beside it can sensibly fill. The rest live on /highlights, one click
+ * away. Fewer render only when fewer exist — a shortfall is a content gap for an editor to fill,
+ * and padding it with repeats would be worse than showing what there is.
+ */
+const HOMEPAGE_CLIPS = 3;
 
 export async function GoalsHighlights() {
-  const clips = await getHighlights();
+  const clips = await getHighlights(HOMEPAGE_CLIPS);
 
   return (
-    <div>
+    // Full-height flex column so the "All highlights" link can sit at the very bottom, level
+    // with the one under the tips beside it.
+    <div className="flex h-full flex-col">
       <div className="mb-[18px]">
         <h3 className="font-display text-[26px] font-normal uppercase tracking-wide lg:text-[32px]">
           Goals &amp; Highlights
@@ -13,17 +26,29 @@ export async function GoalsHighlights() {
         <div className="text-[13px] text-floodlight-dim">The moments worth watching again</div>
       </div>
 
-      {clips.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
-          <p className="text-sm text-floodlight-dim">No clips yet.</p>
-        </div>
-      ) : (
-        clips.map((clip) => (
-          <Link
-            key={clip.id}
-            href="/highlights"
-            className="group relative mb-3 flex aspect-16/10 cursor-pointer items-end overflow-hidden rounded-xl border border-line bg-linear-to-br from-charcoal-3 to-charcoal transition-colors hover:border-[rgba(245,185,66,0.35)]"
-          >
+      {/*
+        The clips share whatever height this column ends up with, rather than each claiming a
+        fixed 16:10 box. The column's height is set by whichever of the two columns is taller, so
+        a fixed aspect ratio left dead space under the last clip whenever the picks beside it ran
+        longer. Stretching absorbs it — the thumbnails are `object-cover`, so they crop a little
+        rather than distort. `min-h` keeps a clip recognisable if the row is ever short.
+
+        Stretching applies from `md` up only — the breakpoint where the two columns exist. Once
+        they stack there is no sibling to match and nothing to grow into, so `flex-1` collapsed
+        every clip to its minimum. Below `md` the original 16:10 box is the right shape.
+      */}
+      <div className="mb-3 flex flex-1 flex-col gap-3">
+        {clips.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line bg-charcoal p-6 text-center">
+            <p className="text-sm text-floodlight-dim">No clips yet.</p>
+          </div>
+        ) : (
+          clips.map((clip) => (
+            <Link
+              key={clip.id}
+              href="/highlights"
+              className="group relative flex aspect-16/10 cursor-pointer items-end overflow-hidden rounded-xl border border-line bg-linear-to-br from-charcoal-3 to-charcoal transition-colors hover:border-[rgba(245,185,66,0.35)] md:aspect-auto md:min-h-[150px] md:flex-1"
+            >
             {clip.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -42,9 +67,12 @@ export async function GoalsHighlights() {
               <div className="mb-0.5 font-mono text-[11px] text-torch">{clip.duration}</div>
               <div className="text-[13px] font-bold">{clip.title}</div>
             </div>
-          </Link>
-        ))
-      )}
+            </Link>
+          ))
+        )}
+      </div>
+
+      <SectionMoreLink href="/highlights">View more highlights →</SectionMoreLink>
     </div>
   );
 }

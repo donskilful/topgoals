@@ -31,7 +31,9 @@ export default function Home() {
       <TrustStrip />
 
       <main className="mx-auto max-w-[1180px] px-5 2xl:max-w-[1320px]">
-        <section className="grid grid-cols-1 items-start gap-7 py-9 md:grid-cols-[1.15fr_0.85fr]">
+        {/* No `items-start` here: the two columns are stretched to a shared height so each
+            can pin its "view more" link to the bottom and finish on the same line. */}
+        <section className="grid grid-cols-1 gap-7 py-9 md:grid-cols-[1.15fr_0.85fr]">
           <TodaysPicks />
           <GoalsHighlights />
         </section>

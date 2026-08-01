@@ -8,6 +8,7 @@ import type { TipResultStatus } from "@/lib/constants";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { DeleteRowForm } from "@/components/admin/delete-row-form";
 import { SavedBanner } from "@/components/admin/saved-banner";
+import { ProviderRecords } from "@/components/admin/provider-records";
 
 const RESULT_BADGES: Record<TipResultStatus, string> = {
   pending: "bg-charcoal-3 text-floodlight-dim",
@@ -43,6 +44,8 @@ export default async function TipsPage({
 
       <SavedBanner show={Boolean(saved)} />
 
+      <ProviderRecords />
+
       {tips.length === 0 ? (
         <EmptyState
           message="No tips yet."
@@ -73,9 +76,24 @@ export default async function TipsPage({
                       <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-floodlight-faint">
                         {tip.competition}
                       </span>
+                      {/* Where the pick came from, and whether readers can see it. An ingested
+                          tip that is being tracked rather than shown needs to be obvious here,
+                          or the list looks like it's publishing far more than it is. */}
+                      {tip.source ? (
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="rounded bg-charcoal-3 px-1.5 py-0.5 text-[10px] font-bold text-floodlight-dim">
+                            via {tip.source.name}
+                          </span>
+                          {tip.published === false ? (
+                            <span className="rounded bg-charcoal-3 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-floodlight-faint">
+                              Tracking only
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
                     </td>
                     <td className={`px-4 py-3 text-floodlight-dim ${border}`}>{tip.pick}</td>
-                    <td className={`px-4 py-3 font-mono ${border}`}>{tip.odds}</td>
+                    <td className={`px-4 py-3 font-mono ${border}`}>{tip.odds ?? "—"}</td>
                     <td className={`px-4 py-3 font-mono text-[11px] text-floodlight-dim ${border}`}>
                       {dateTimeFormatter.format(tip.kickoffAt)}
                     </td>

@@ -25,9 +25,35 @@ export type SyncResult = {
  *  - Nothing is deleted here. Old fixtures ageing out of the window stay until
  *    someone removes them, so a provider outage can't wipe the ticker.
  */
+/**
+ * Stale-index guard.
+ *
+ * `externalId` was indexed unique+sparse, which doesn't do what it looks like it does when the
+ * field defaults to null — see the model. Mongoose only ever *declares* indexes; it never drops
+ * ones that have changed, so on any database created before the fix the old index is still live
+ * and still rejects the second hand-added fixture. `syncIndexes()` replaces it.
+ *
+ * Runs once per process rather than per sync: it's a schema operation, not a per-run one.
+ */
+let indexesSynced = false;
+
+async function ensureIndexes() {
+  if (indexesSynced) return;
+
+  try {
+    await Match.syncIndexes();
+    indexesSynced = true;
+  } catch (error) {
+    // Never fail a sync over this — a fresh database already has the right indexes, and a real
+    // write problem will surface on its own below.
+    console.warn("Could not sync Match indexes:", error);
+  }
+}
+
 export async function syncMatches(): Promise<SyncResult> {
   const feed = await fetchMatches();
   await dbConnect();
+  await ensureIndexes();
 
   const result: SyncResult = {
     fetched: feed.length,
