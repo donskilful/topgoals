@@ -79,6 +79,14 @@ export const AUDIT_ENTITY_TYPES = [
   "StandingRow",
   "User",
   "Message",
+  /**
+   * Not a collection: a hand-triggered run of one of the automated jobs, keyed by job name.
+   *
+   * Worth logging alongside content edits because it answers the same question the audit trail
+   * exists for. An automated job rewrites content across the site, so "why did forty articles
+   * change at 2am?" needs "an admin pressed Update on the news job" to be answerable.
+   */
+  "Automation",
 ] as const;
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 

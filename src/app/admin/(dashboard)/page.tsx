@@ -7,6 +7,7 @@ import { Highlight } from "@/lib/models/highlight";
 import { Match } from "@/lib/models/match";
 import { AuditLog } from "@/lib/models/audit-log";
 import { Message } from "@/lib/models/message";
+import { AutomationPanel } from "@/components/admin/automation-panel";
 
 const ACTION_COLOURS = {
   create: "text-pitch-bright",
@@ -87,6 +88,13 @@ export default async function AdminOverviewPage({
           </Link>
         ))}
       </div>
+
+      {/*
+        Admin-only, matching the action behind its buttons: these jobs rewrite content across
+        the site and spend a rate-limited provider budget, which is a heavier decision than the
+        content editing a moderator does.
+      */}
+      {isAdmin ? <AutomationPanel /> : null}
 
       {/* The audit trail is administrators-only — moderators don't see it at all. */}
       {isAdmin ? (
